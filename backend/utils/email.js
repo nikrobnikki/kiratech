@@ -14,10 +14,11 @@ function getTransporter() {
     return null; // Not configured yet
   }
 
+  // Use port 465 (SSL) — port 587 is blocked on many cloud hosts including Render free tier
   _transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT) || 587,
-    secure: false,           // TLS via STARTTLS on port 587
+    port: 465,
+    secure: true,            // SSL on port 465
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS, // Must be a Gmail App Password, NOT your account password
@@ -25,7 +26,7 @@ function getTransporter() {
     tls: {
       rejectUnauthorized: true,
     },
-    pool: true,              // Reuse connections for better performance
+    pool: true,
     maxConnections: 3,
     maxMessages: 100,
     rateDelta: 1000,
