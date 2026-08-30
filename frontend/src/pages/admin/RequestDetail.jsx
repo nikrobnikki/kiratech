@@ -1,199 +1,283 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
 import api from '../../lib/api';
-import StatusBadge from '../../components/StatusBadge';
-import { PageSpinner } from '../../components/Spinner';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { StatusBadge, PriorityBadge } from '../../components/StatusBadge';
+import { CreditCardIcon, BanknotesIcon, UserIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
+
+// TZS formatter
+const tzs = (v) => `TZS ${Number(v).toLocaleString('en-TZ')}`;
+
+const payBadge = {
+  unpaid: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  paid:   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  waived: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
+};
 
 export default function AdminRequestDetail() {
   const { id } = useParams();
-  const [request, setRequest]   = useState(null);
-  const [technicians, setTechs] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [selectedTech, setSelectedTech] = useState('');
-  const [adminNotes, setAdminNotes]     = useState('');
-  const [assigning, setAssigning]       = useState(false);
-  const [finalCost, setFinalCost]       = useState('');
-  const [settingCost, setSettingCost]   = useState(false);
-  const [cancelling, setCancelling]     = useState(false);
+  const [request, setRequest]     = useState(null);
+  const [payment, setPayment]     = useState(null);
+  const [technicians, setTechs]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [selectedTech, setSelTech] = useState('');
+  const [adminNotes, setNotes]    = useState('');
+  const [assigning, setAssigning] = useState(false);
+  const [costForm, setCost]       = useState({ finalCost: '', estimatedCost: '', waive: false });
+  const [settingCost, setSetting] = useState(false);
 
-  const fetch = () => {
+  const fetchData = () => {
     Promise.all([
       api.get(`/admin/requests/${id}`),
-      api.get('/admin/technicians?limit=100'),
-    ]).then(([reqRes, techRes]) => {
-      setRequest(reqRes.data.request);
-      setTechs(techRes.data.data || []);
-      setFinalCost(reqRes.data.request.finalCost || '');
-    }).catch(() => toast.error('Failed to load'))
-      .finally(() => setLoading(false));
+      api.get('/admin/technicians?availability=available'),
+      api.get(`/payments/request/${id}`).catch(() => ({ data: { payment: null } })),
+    ]).then(([reqRes, techRes, payRes]) => {
+      const req = reqRes.data.request;
+      setRequest(req);
+      setTechs(techRes.data.data);
+      setPayment(payRes.data.payment);
+      setCost({
+        finalCost:     req.finalCost     ? String(parseFloat(req.finalCost))     : '',
+        estimatedCost: req.estimatedCost ? String(parseFloat(req.estimatedCost)) : '',
+        waive: req.paymentStatus === 'waived',
+      });
+    }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetch(); }, [id]);
+  useEffect(() => { fetchData(); }, [id]);
 
-  const assign = async () => {
-    if (!selectedTech) { toast.error('Select a technician'); return; }
+  const handleAssign = async () => {
+    if (!selectedTech) { toast.error('Please select a technician'); return; }
     setAssigning(true);
     try {
-      await api.put(`/admin/requests/${id}/assign`, { technicianId: selectedTech, adminNotes: adminNotes || undefined });
+      await api.put(`/admin/requests/${id}/assign`, { technicianId: selectedTech, adminNotes });
       toast.success('Technician assigned!');
-      fetch();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to assign'); }
     finally { setAssigning(false); }
   };
 
-  const setCost = async (e) => {
+  const handleCancel = async () => {
+    if (!confirm('Cancel this request?')) return;
+    try { await api.put(`/admin/requests/${id}/cancel`); toast.success('Request cancelled'); fetchData(); }
+    catch { toast.error('Failed to cancel'); }
+  };
+
+  const handleSetCost = async (e) => {
     e.preventDefault();
-    setSettingCost(true);
+    if (!costForm.finalCost && !costForm.waive) { toast.error('Enter a final cost or select Waive'); return; }
+    setSetting(true);
     try {
-      await api.put(`/payments/admin/set-cost/${id}`, { finalCost: parseFloat(finalCost) });
-      toast.success('Final cost set!');
-      fetch();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
-    finally { setSettingCost(false); }
+      await api.put(`/payments/admin/set-cost/${id}`, {
+        finalCost:     parseFloat(costForm.finalCost) || 0,
+        estimatedCost: costForm.estimatedCost ? parseFloat(costForm.estimatedCost) : undefined,
+        waive:         costForm.waive,
+      });
+      toast.success(costForm.waive ? 'Payment waived' : 'Cost set — customer can now pay');
+      fetchData();
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to set cost'); }
+    finally { setSetting(false); }
   };
 
-  const cancel = async () => {
-    if (!window.confirm('Cancel this request?')) return;
-    setCancelling(true);
-    try {
-      await api.put(`/admin/requests/${id}/cancel`);
-      toast.success('Request cancelled');
-      fetch();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
-    finally { setCancelling(false); }
-  };
+  if (loading) return <LoadingSpinner />;
+  if (!request) return <div className="text-center py-20 text-slate-500">Request not found.</div>;
 
-  if (loading) return <PageSpinner />;
-  if (!request) return <div className="text-center text-slate-400 py-20">Request not found</div>;
-
-  const canAssign  = ['pending', 'rejected'].includes(request.status);
-  const canCancel  = !['completed', 'cancelled'].includes(request.status);
-  const canSetCost = request.status === 'completed' && request.paymentStatus !== 'paid';
+  const isCompleted = request.status === 'completed';
+  const canSetCost  = isCompleted && request.paymentStatus !== 'paid';
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <Link to="/admin/requests" className="text-sm text-slate-400 hover:text-white mb-2 inline-block">← Back</Link>
-          <h1 className="text-xl font-bold text-white">{request.title}</h1>
-          <p className="text-slate-400 text-sm font-mono mt-1">{request.ticketNumber}</p>
+    <div className="max-w-3xl space-y-5 animate-fade-in-up">
+      <Link to="/admin/requests" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+        ← Service Requests
+      </Link>
+
+      {/* Request overview */}
+      <div className="card-cyber p-6">
+        <div className="flex justify-between items-start gap-3 mb-5">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{request.title}</h1>
+            <p className="text-xs font-mono text-blue-600 dark:text-blue-400 mt-1">#{request.ticketNumber}</p>
+          </div>
+          <div className="flex gap-2">
+            <PriorityBadge priority={request.priority} />
+            <StatusBadge status={request.status} />
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <StatusBadge status={request.status} />
-          <StatusBadge status={request.paymentStatus} />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          {[
+            ['Service',   request.service?.name],
+            ['Category',  <span className="capitalize">{request.service?.category}</span>],
+            ['Submitted', new Date(request.createdAt).toLocaleString()],
+            request.location && ['Location', request.location],
+            request.estimatedCost && ['Est. Cost', tzs(request.estimatedCost)],
+            request.finalCost    && ['Final Cost', <span className="font-bold text-green-600 dark:text-green-400">{tzs(request.finalCost)}</span>],
+            ['Payment', <span className={`badge ${payBadge[request.paymentStatus]}`}>{request.paymentStatus}</span>],
+            payment?.paidAt && ['Paid On', new Date(payment.paidAt).toLocaleString()],
+          ].filter(Boolean).map(([label, val]) => (
+            <div key={label}>
+              <span className="font-medium text-slate-500 dark:text-slate-400">{label}: </span>
+              <span className="text-gray-800 dark:text-gray-200">{val}</span>
+            </div>
+          ))}
+        </div>
+
+        {payment?.receiptUrl && (
+          <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer"
+            className="mt-3 inline-block text-xs text-blue-600 dark:text-blue-400 hover:underline">
+            View Receipt →
+          </a>
+        )}
+
+        <div className="mt-4 text-sm border-t border-blue-50 dark:border-slate-700/60 pt-4">
+          <span className="font-medium text-slate-500 dark:text-slate-400">Description:</span>
+          <p className="text-gray-800 dark:text-gray-200 mt-1 whitespace-pre-wrap">{request.description}</p>
         </div>
       </div>
 
       {/* Customer */}
-      {request.customer && (
-        <div className="card">
-          <h2 className="font-semibold text-white mb-3">Customer</h2>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><span className="text-slate-500">Name</span><p className="text-white">{request.customer.name}</p></div>
-            <div><span className="text-slate-500">Email</span><p className="text-white">{request.customer.email}</p></div>
-            {request.customer.phone && <div><span className="text-slate-500">Phone</span><p className="text-white">{request.customer.phone}</p></div>}
-          </div>
+      <div className="card-cyber p-5">
+        <h2 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+          <UserIcon className="h-5 w-5 text-blue-500" /> Customer
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          {[
+            ['Name',  request.customer?.name],
+            ['Email', request.customer?.email],
+            request.customer?.phone && ['Phone', request.customer.phone],
+          ].filter(Boolean).map(([l, v]) => (
+            <div key={l}>
+              <span className="font-medium text-slate-500 dark:text-slate-400">{l}: </span>
+              <span className="text-gray-800 dark:text-gray-200">{v}</span>
+            </div>
+          ))}
         </div>
-      )}
-
-      {/* Details */}
-      <div className="card space-y-3">
-        <h2 className="font-semibold text-white">Request Details</h2>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div><span className="text-slate-500">Service</span><p className="text-white">{request.service?.name}</p></div>
-          <div><span className="text-slate-500">Priority</span><p className="text-white capitalize">{request.priority}</p></div>
-          <div><span className="text-slate-500">Submitted</span><p className="text-white">{new Date(request.createdAt).toLocaleString()}</p></div>
-          {request.location && <div><span className="text-slate-500">Location</span><p className="text-white">{request.location}</p></div>}
-        </div>
-        <div><p className="text-slate-500 text-sm mb-1">Description</p>
-          <p className="text-slate-200 text-sm whitespace-pre-wrap">{request.description}</p>
-        </div>
-        {request.technicianNotes && (
-          <div className="bg-slate-800 rounded-lg p-3">
-            <p className="text-xs text-slate-500 mb-1">Technician notes</p>
-            <p className="text-slate-200 text-sm">{request.technicianNotes}</p>
-          </div>
-        )}
       </div>
 
-      {/* Assigned technician */}
+      {/* Technician */}
       {request.technician && (
-        <div className="card">
-          <h2 className="font-semibold text-white mb-3">Assigned Technician</h2>
+        <div className="card-cyber p-5">
+          <h2 className="font-bold text-gray-900 dark:text-white mb-3">Assigned Technician</h2>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-              {request.technician.user?.name?.[0]}
+            <div className="h-10 w-10 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+              <span className="font-bold text-green-700 dark:text-green-300">{request.technician.user?.name?.[0]}</span>
             </div>
             <div>
-              <p className="font-medium text-white">{request.technician.user?.name}</p>
+              <p className="font-semibold text-gray-900 dark:text-white">{request.technician.user?.name}</p>
               <p className="text-sm text-slate-400">{request.technician.user?.phone}</p>
             </div>
           </div>
+          {request.technicianNotes && (
+            <div className="mt-3 bg-blue-50/50 dark:bg-slate-700/40 p-3 rounded-xl text-sm">
+              <p className="font-medium text-slate-600 dark:text-slate-300 mb-1">Notes:</p>
+              <p className="text-slate-600 dark:text-slate-400">{request.technicianNotes}</p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Assign */}
-      {canAssign && (
-        <div className="card">
-          <h2 className="font-semibold text-white mb-4">Assign Technician</h2>
+      {/* Set Final Cost — TZS */}
+      {canSetCost && (
+        <div className="card-cyber p-6 border-blue-300 dark:border-blue-700">
+          <h2 className="font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+            <BanknotesIcon className="h-5 w-5 text-blue-500" /> Set Invoice Amount (TZS)
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+            Enter amount in Tanzanian Shillings. Customer will be notified and can pay online.
+          </p>
+          <form onSubmit={handleSetCost} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="label">Final Cost (TZS) *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">TZS</span>
+                  <input type="number" min="0" step="1000" className="input pl-10"
+                    placeholder="e.g. 25000"
+                    value={costForm.finalCost}
+                    onChange={e => setCost({ ...costForm, finalCost: e.target.value })}
+                    disabled={costForm.waive} required={!costForm.waive} />
+                </div>
+                {costForm.finalCost && !costForm.waive && (
+                  <p className="text-xs text-blue-500 mt-1">= {tzs(costForm.finalCost)}</p>
+                )}
+              </div>
+              <div>
+                <label className="label">Estimated Cost (TZS) <span className="text-slate-400 font-normal">optional</span></label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">TZS</span>
+                  <input type="number" min="0" step="1000" className="input pl-10"
+                    placeholder="e.g. 20000"
+                    value={costForm.estimatedCost}
+                    onChange={e => setCost({ ...costForm, estimatedCost: e.target.value })}
+                    disabled={costForm.waive} />
+                </div>
+              </div>
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                checked={costForm.waive}
+                onChange={e => setCost({ ...costForm, waive: e.target.checked, finalCost: e.target.checked ? '0' : costForm.finalCost })} />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Waive payment — customer pays nothing for this request
+              </span>
+            </label>
+            <button type="submit" className="btn-primary gap-2" disabled={settingCost}>
+              <CreditCardIcon className="h-4 w-4" />
+              {settingCost ? 'Saving…' : costForm.waive ? 'Waive Payment' : 'Set Cost & Notify Customer'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Paid confirmation */}
+      {isCompleted && request.paymentStatus === 'paid' && (
+        <div className="card-cyber p-5 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/10 flex items-center gap-4">
+          <div className="h-11 w-11 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+            <CreditCardIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <p className="font-bold text-green-700 dark:text-green-400">✅ Payment Received</p>
+            <p className="text-sm text-green-600 dark:text-green-500">
+              {tzs(request.finalCost)} received
+              {payment?.paidAt ? ` · ${new Date(payment.paidAt).toLocaleString()}` : ''}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Assign technician */}
+      {['pending', 'rejected'].includes(request.status) && (
+        <div className="card-cyber p-6">
+          <h2 className="font-bold text-gray-900 dark:text-white mb-4">Assign Technician</h2>
           <div className="space-y-3">
-            <select className="input-field" value={selectedTech} onChange={e => setSelectedTech(e.target.value)}>
-              <option value="">— Select technician —</option>
-              {technicians.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.user?.name} ({t.availability}) — {t.specialization || 'General'}
-                </option>
-              ))}
-            </select>
-            <textarea rows={2} className="input-field resize-none" value={adminNotes}
-              onChange={e => setAdminNotes(e.target.value)} placeholder="Admin notes for the technician (optional)" />
-            <button onClick={assign} disabled={assigning || !selectedTech} className="btn-primary w-full py-2.5">
+            <div>
+              <label className="label">Select Technician</label>
+              <select className="input" value={selectedTech} onChange={e => setSelTech(e.target.value)}>
+                <option value="">— Choose a technician —</option>
+                {technicians.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.user?.name} — {t.specialization || 'General'} ({t.availability})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Admin Notes <span className="text-slate-400 font-normal">(optional)</span></label>
+              <textarea className="input" rows={2} value={adminNotes} onChange={e => setNotes(e.target.value)} />
+            </div>
+            <button onClick={handleAssign} className="btn-primary" disabled={assigning}>
               {assigning ? 'Assigning…' : 'Assign Technician'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Set final cost */}
-      {canSetCost && (
-        <form onSubmit={setCost} className="card space-y-3">
-          <h2 className="font-semibold text-white">Set Final Cost</h2>
-          <div className="flex gap-3">
-            <input type="number" min={0} step="0.01" required className="input-field flex-1"
-              placeholder="Amount in USD" value={finalCost} onChange={e => setFinalCost(e.target.value)} />
-            <button type="submit" disabled={settingCost} className="btn-success px-6">
-              {settingCost ? '…' : 'Set Cost'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Confirm payment */}
-      {request.paymentStatus === 'unpaid' && request.status === 'completed' && (
-        <div className="card">
-          <h2 className="font-semibold text-white mb-3">Pending Payments</h2>
-          <p className="text-slate-400 text-sm">Check the payments section to confirm mobile money / crypto payments.</p>
-          <Link to="/admin/payments" className="mt-3 inline-block text-sm text-blue-400 hover:text-blue-300">Go to Payments →</Link>
-        </div>
-      )}
-
-      {/* Review */}
-      {request.review && (
-        <div className="card">
-          <h2 className="font-semibold text-white mb-2">Customer Review</h2>
-          <div className="flex gap-1 mb-1">{Array.from({ length: 5 }, (_, i) => (
-            <span key={i} className={i < request.review.rating ? 'text-yellow-400' : 'text-slate-700'}>⭐</span>
-          ))}</div>
-          {request.review.comment && <p className="text-slate-300 text-sm">{request.review.comment}</p>}
-        </div>
-      )}
-
       {/* Cancel */}
-      {canCancel && (
-        <button onClick={cancel} disabled={cancelling} className="btn-danger w-full py-2.5">
-          {cancelling ? 'Cancelling…' : '✖ Cancel Request'}
-        </button>
+      {!['completed', 'cancelled'].includes(request.status) && (
+        <div>
+          <button onClick={handleCancel} className="btn-danger text-sm">Cancel Request</button>
+        </div>
       )}
     </div>
   );

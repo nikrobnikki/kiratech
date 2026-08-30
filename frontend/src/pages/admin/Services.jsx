@@ -1,147 +1,128 @@
-import { useEffect, useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { useState, useEffect } from 'react';
 import api from '../../lib/api';
-import { PageSpinner } from '../../components/Spinner';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { CogIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
-const defaultForm = { name: '', description: '', category: 'standard', basePrice: '', estimatedDuration: '', icon: '', sortOrder: '' };
+const tzs = (v) => `TZS ${Number(v).toLocaleString('en-TZ')}`;
+const initialForm = { name:'', description:'', category:'standard', basePrice:'', estimatedDuration:'' };
 
 export default function AdminServices() {
-  const [services, setServices]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [showForm, setShowForm]   = useState(false);
-  const [form, setForm]           = useState(defaultForm);
-  const [saving, setSaving]       = useState(false);
+  const [services, setServices] = useState([]);
+  const [loading, setLoad]      = useState(true);
+  const [showForm, setShow]     = useState(false);
+  const [form, setForm]         = useState(initialForm);
+  const [submitting, setSub]    = useState(false);
 
-  const fetch = () => {
-    api.get('/services').then(r => setServices(r.data.services || []))
-      .catch(() => {}).finally(() => setLoading(false));
+  const fetchServices = () => {
+    setLoad(true);
+    api.get('/services').then(({ data }) => setServices(data.services)).finally(() => setLoad(false));
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchServices(); }, []);
 
   const handleCreate = async (e) => {
-    e.preventDefault();
-    setSaving(true);
+    e.preventDefault(); setSub(true);
     try {
-      const payload = {
-        ...form,
-        basePrice:  form.basePrice  ? parseFloat(form.basePrice)  : 0,
-        sortOrder:  form.sortOrder  ? parseInt(form.sortOrder)     : 99,
-      };
-      await api.post('/services', payload);
+      await api.post('/services', form);
       toast.success('Service created!');
-      setForm(defaultForm);
-      setShowForm(false);
-      fetch();
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to create service');
-    } finally {
-      setSaving(false);
-    }
+      setForm(initialForm); setShow(false); fetchServices();
+    } catch (err) { toast.error(err.response?.data?.error || 'Failed to create service'); }
+    finally { setSub(false); }
   };
 
-  const toggleActive = async (svc) => {
+  const toggleService = async (svc) => {
     try {
-      if (svc.isActive) {
-        await api.delete(`/services/${svc.id}`);
-        toast.success('Service deactivated');
-      } else {
-        await api.put(`/services/${svc.id}`, { isActive: true });
-        toast.success('Service activated');
-      }
-      fetch();
-    } catch (err) { toast.error('Failed to update service'); }
+      await api.put(`/services/${svc.id}`, { isActive: !svc.isActive });
+      toast.success(`Service ${!svc.isActive ? 'activated' : 'deactivated'}`);
+      fetchServices();
+    } catch { toast.error('Failed to update service'); }
   };
-
-  if (loading) return <PageSpinner />;
-
-  const standard = services.filter(s => s.category === 'standard');
-  const premium  = services.filter(s => s.category === 'premium');
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">Services</h1>
-          <p className="text-slate-400 mt-1">{services.length} active services</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <CogIcon className="h-7 w-7 text-blue-500" /> Services
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400">Manage available IT services and their prices (TZS).</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary text-sm">
-          {showForm ? 'Cancel' : '+ Add Service'}
+        <button onClick={() => setShow(!showForm)} className={showForm ? 'btn-secondary gap-2' : 'btn-primary gap-2'}>
+          {showForm ? <><XCircleIcon className="h-4 w-4" /> Cancel</> : <><PlusCircleIcon className="h-4 w-4" /> Add Service</>}
         </button>
       </div>
 
+      {/* Add form */}
       {showForm && (
-        <form onSubmit={handleCreate} className="card space-y-4">
-          <h2 className="font-semibold text-white">New Service</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Name *</label>
-              <input required className="input-field" value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+        <div className="card-cyber p-6 animate-fade-in-down">
+          <h2 className="font-bold text-gray-900 dark:text-white mb-5">Add New Service</h2>
+          <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="label">Service Name *</label>
+              <input type="text" className="input" value={form.name} onChange={e => setForm({...form,name:e.target.value})} required />
             </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Description</label>
-              <textarea rows={2} className="input-field resize-none" value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            <div className="sm:col-span-2">
+              <label className="label">Description</label>
+              <textarea className="input" rows={2} value={form.description} onChange={e => setForm({...form,description:e.target.value})} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Category *</label>
-              <select className="input-field" value={form.category}
-                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+              <label className="label">Category</label>
+              <select className="input" value={form.category} onChange={e => setForm({...form,category:e.target.value})}>
                 <option value="standard">Standard</option>
-                <option value="premium">Premium</option>
+                <option value="premium">⭐ Premium</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Base Price (TZS)</label>
-              <input type="number" min={0} className="input-field" value={form.basePrice}
-                onChange={e => setForm(f => ({ ...f, basePrice: e.target.value }))} />
+              <label className="label">Base Price (TZS)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">TZS</span>
+                <input type="number" className="input pl-10" min={0} step={1000}
+                  placeholder="e.g. 25000"
+                  value={form.basePrice} onChange={e => setForm({...form,basePrice:e.target.value})} />
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Duration</label>
-              <input className="input-field" placeholder="e.g. 1-3 hours" value={form.estimatedDuration}
-                onChange={e => setForm(f => ({ ...f, estimatedDuration: e.target.value }))} />
+              <label className="label">Estimated Duration</label>
+              <input type="text" className="input" placeholder="e.g. 1-2 hours"
+                value={form.estimatedDuration} onChange={e => setForm({...form,estimatedDuration:e.target.value})} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Icon (name)</label>
-              <input className="input-field" placeholder="e.g. computer" value={form.icon}
-                onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} />
+            <div className="sm:col-span-2">
+              <button type="submit" className="btn-primary gap-2" disabled={submitting}>
+                {submitting ? <><span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Creating…</> : '✓ Create Service'}
+              </button>
             </div>
-          </div>
-          <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? 'Creating…' : 'Create Service'}
-          </button>
-        </form>
+          </form>
+        </div>
       )}
 
-      {[{ label: 'Standard Services', items: standard }, { label: 'Premium Services', items: premium }].map(group => (
-        <div key={group.label}>
-          <h2 className="font-semibold text-slate-400 text-sm uppercase tracking-wider mb-3">{group.label}</h2>
-          <div className="space-y-3">
-            {group.items.map(s => (
-              <div key={s.id} className="card flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="font-medium text-white">{s.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.description?.slice(0, 80)}</p>
-                  <div className="flex gap-3 text-xs text-slate-500 mt-1">
-                    {s.basePrice > 0 && <span>TZS {s.basePrice.toLocaleString()}</span>}
-                    {s.estimatedDuration && <span>{s.estimatedDuration}</span>}
-                    <span className={s.isActive ? 'text-green-400' : 'text-slate-600'}>{s.isActive ? 'Active' : 'Inactive'}</span>
-                  </div>
-                </div>
-                <button onClick={() => toggleActive(s)}
-                  className={`text-xs px-3 py-1.5 rounded-lg ml-4 flex-shrink-0 ${
-                    s.isActive
-                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                  }`}>
-                  {s.isActive ? 'Deactivate' : 'Activate'}
-                </button>
+      {/* Service cards */}
+      {loading ? <LoadingSpinner /> : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {services.map((svc, i) => (
+            <div key={svc.id}
+              className={`card-cyber p-5 transition-all duration-200 animate-fade-in-up delay-${Math.min(i*50,400)} ${!svc.isActive ? 'opacity-50' : 'hover:shadow-cyber hover:-translate-y-0.5'}`}>
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm leading-tight pr-2">{svc.name}</h3>
+                <span className={`badge text-xs flex-shrink-0 ${svc.category==='premium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                  {svc.category==='premium' ? '⭐' : '●'} {svc.category}
+                </span>
               </div>
-            ))}
-          </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{svc.description}</p>
+              <div className="flex justify-between items-center text-xs border-t border-blue-50 dark:border-slate-700/50 pt-2.5">
+                <span className="font-bold text-blue-600 dark:text-blue-400">
+                  {svc.basePrice > 0 ? tzs(svc.basePrice) : 'Free'}
+                </span>
+                {svc.estimatedDuration && <span className="text-slate-400">⏱ {svc.estimatedDuration}</span>}
+              </div>
+              <button onClick={() => toggleService(svc)}
+                className={`mt-3 text-xs font-semibold hover:underline ${svc.isActive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                {svc.isActive ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

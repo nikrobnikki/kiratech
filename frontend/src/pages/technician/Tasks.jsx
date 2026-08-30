@@ -1,77 +1,76 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../lib/api';
-import StatusBadge from '../../components/StatusBadge';
-import Pagination from '../../components/Pagination';
-import EmptyState from '../../components/EmptyState';
-import { PageSpinner } from '../../components/Spinner';
-
-const STATUSES = ['', 'assigned', 'accepted', 'in_progress', 'completed'];
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { StatusBadge, PriorityBadge } from '../../components/StatusBadge';
+import { ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 
 export default function TechnicianTasks() {
-  const [tasks, setTasks]         = useState([]);
-  const [pagination, setPagination] = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [filter, setFilter]       = useState('');
-  const [page, setPage]           = useState(1);
+  const [tasks, setTasks]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [statusFilter, setFilter]   = useState('');
 
-  const fetch = (p = 1, status = filter) => {
+  useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ page: p, limit: 10 });
-    if (status) params.append('status', status);
-    api.get(`/technician/tasks?${params}`)
-      .then(r => { setTasks(r.data.data || []); setPagination(r.data.pagination); })
-      .catch(() => {}).finally(() => setLoading(false));
-  };
+    const params = statusFilter ? `?status=${statusFilter}` : '';
+    api.get(`/technician/tasks${params}`).then(({ data }) => setTasks(data.data)).finally(() => setLoading(false));
+  }, [statusFilter]);
 
-  useEffect(() => { fetch(1, filter); setPage(1); }, [filter]);
+  const statuses = ['', 'assigned', 'accepted', 'in_progress', 'completed', 'rejected'];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">My Tasks</h1>
-        <p className="text-slate-400 mt-1">{pagination?.total ?? 0} total</p>
-      </div>
+    <div className="space-y-6 animate-fade-in-up">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <ClipboardDocumentCheckIcon className="h-7 w-7 text-blue-500" />
+        My Tasks
+      </h1>
 
-      <div className="flex gap-2 flex-wrap">
-        {STATUSES.map(s => (
+      {/* Filter */}
+      <div className="flex flex-wrap gap-2">
+        {statuses.map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              filter === s ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
+              statusFilter === s
+                ? 'bg-blue-600 text-white shadow-cyber-sm'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-blue-100 dark:border-slate-700 hover:border-blue-400'
             }`}>
             {s === '' ? 'All' : s.replace('_', ' ')}
           </button>
         ))}
       </div>
 
-      {loading ? <PageSpinner /> : (
-        <>
-          {tasks.length === 0 ? (
-            <EmptyState icon="🔧" title="No tasks" description="No tasks match the selected filter" />
-          ) : (
-            <div className="space-y-3">
-              {tasks.map(t => (
-                <Link key={t.id} to={`/technician/tasks/${t.id}`}
-                  className="card flex items-center justify-between hover:border-slate-600 transition-colors p-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold text-white truncate">{t.title}</p>
-                      <StatusBadge status={t.status} />
-                    </div>
-                    <div className="flex gap-4 mt-1 text-xs text-slate-500">
-                      <span>{t.ticketNumber}</span>
-                      <span>{t.customer?.name}</span>
-                      <span>{t.service?.name}</span>
-                      <span className="capitalize">{t.priority}</span>
-                    </div>
-                  </div>
-                  <span className="text-slate-500 ml-4">→</span>
-                </Link>
-              ))}
-            </div>
-          )}
-          <Pagination pagination={pagination} onPageChange={(p) => { setPage(p); fetch(p); }} />
-        </>
+      {loading ? <LoadingSpinner /> : tasks.length === 0 ? (
+        <div className="card-cyber p-12 text-center">
+          <ClipboardDocumentCheckIcon className="h-12 w-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+          <p className="text-slate-500 dark:text-slate-400">No tasks found.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {tasks.map((task, i) => (
+            <Link key={task.id} to={`/technician/tasks/${task.id}`}
+              className={`card-cyber p-5 block hover:shadow-cyber hover:-translate-y-0.5
+                          transition-all duration-200 animate-fade-in-up delay-${Math.min(i * 50, 400)}`}>
+              <div className="flex flex-wrap justify-between items-start gap-3">
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900 dark:text-white truncate">{task.title}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                    {task.service?.name}
+                    <span className="mx-1.5">·</span>
+                    <span className="font-mono text-blue-500">#{task.ticketNumber}</span>
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    👤 {task.customer?.name}
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <PriorityBadge priority={task.priority} />
+                  <StatusBadge status={task.status} />
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-3">{new Date(task.createdAt).toLocaleString()}</p>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );

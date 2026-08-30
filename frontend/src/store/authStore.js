@@ -1,48 +1,59 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import api from '../lib/api';
 
-const useAuthStore = create((set, get) => ({
-  user:    JSON.parse(localStorage.getItem('user') || 'null'),
-  token:   localStorage.getItem('token') || null,
-  loading: false,
-  error:   null,
+export const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
 
-  login: async (email, password) => {
-    set({ loading: true, error: null });
-    try {
-      const { data } = await api.post('/auth/login', { email, password });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      set({ user: data.user, token: data.token, loading: false });
-      return data.user;
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Login failed';
-      set({ loading: false, error: msg });
-      throw new Error(msg);
+      login: async (email, password) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await api.post('/auth/login', { email, password });
+          set({ user: data.user, token: data.token, isAuthenticated: true, isLoading: false });
+          api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+          return { success: true, user: data.user };
+        } catch (err) {
+          set({ isLoading: false });
+          return { success: false, error: err.response?.data?.error || 'Login failed' };
+        }
+      },
+
+      register: async (formData) => {
+        set({ isLoading: true });
+        try {
+          const { data } = await api.post('/auth/register', formData);
+          set({ isLoading: false });
+          return { success: true, message: data.message };
+        } catch (err) {
+          set({ isLoading: false });
+          return { success: false, error: err.response?.data?.error || 'Registration failed' };
+        }
+      },
+
+      logout: () => {
+        set({ user: null, token: null, isAuthenticated: false });
+        delete api.defaults.headers.common['Authorization'];
+      },
+
+      updateUser: (updatedUser) => {
+        set({ user: { ...get().user, ...updatedUser } });
+      },
+
+      initializeAuth: () => {
+        const { token } = get();
+        if (token) {
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        }
+      },
+    }),
+    {
+      name: 'kiratech-auth',
+      partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated }),
     }
-  },
-
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    set({ user: null, token: null });
-  },
-
-  refreshUser: async () => {
-    try {
-      const { data } = await api.get('/auth/me');
-      const user = data.user;
-      localStorage.setItem('user', JSON.stringify(user));
-      set({ user });
-    } catch (_) {
-      get().logout();
-    }
-  },
-
-  isAuthenticated: () => !!get().token,
-  isAdmin: ()       => get().user?.role === 'admin',
-  isTechnician: ()  => get().user?.role === 'technician',
-  isCustomer: ()    => get().user?.role === 'customer',
-}));
-
-export default useAuthStore;
+  )
+);

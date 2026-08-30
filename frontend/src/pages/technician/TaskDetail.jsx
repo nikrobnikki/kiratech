@@ -1,137 +1,190 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import api from '../../lib/api';
-import StatusBadge from '../../components/StatusBadge';
-import { PageSpinner } from '../../components/Spinner';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { StatusBadge, PriorityBadge } from '../../components/StatusBadge';
+import RequestChat from '../../components/RequestChat';
+import { UserIcon, WrenchScrewdriverIcon, CheckCircleIcon, PhoneIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
-export default function TechnicianTaskDetail() {
+export default function TaskDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const [task, setTask]     = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [notes, setNotes]   = useState('');
-  const [working, setWorking] = useState(false);
+  const [task, setTask]           = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [notes, setNotes]         = useState('');
+  const [acting, setActing]       = useState(false);
 
-  const fetch = () => {
-    api.get(`/technician/tasks/${id}`)
-      .then(r => { setTask(r.data.request); setNotes(r.data.request.technicianNotes || ''); })
-      .catch(() => toast.error('Task not found'))
-      .finally(() => setLoading(false));
+  const fetchTask = () => {
+    api.get(`/technician/tasks/${id}`).then(({ data }) => {
+      setTask(data.request);
+      setNotes(data.request.technicianNotes || '');
+    }).finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetch(); }, [id]);
+  useEffect(() => { fetchTask(); }, [id]);
 
-  const doAccept = async () => {
-    setWorking(true);
+  const handleAction = async (action) => {
+    setActing(true);
     try {
-      await api.put(`/technician/tasks/${id}/accept`);
-      toast.success('Task accepted!');
-      fetch();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
-    finally { setWorking(false); }
+      if (action === 'accept')      { await api.put(`/technician/tasks/${id}/accept`); toast.success('Task accepted!'); }
+      else if (action === 'reject') { await api.put(`/technician/tasks/${id}/reject`); toast.success('Task rejected'); }
+      else if (action === 'in_progress') { await api.put(`/technician/tasks/${id}/status`, { status: 'in_progress', notes }); toast.success('Status: In Progress'); }
+      else if (action === 'completed') {
+        if (!notes.trim()) { toast.error('Add service notes before completing'); setActing(false); return; }
+        await api.put(`/technician/tasks/${id}/status`, { status: 'completed', notes });
+        toast.success('Task completed! 🎉');
+      }
+      fetchTask();
+    } catch (err) { toast.error(err.response?.data?.error || 'Action failed'); }
+    finally { setActing(false); }
   };
 
-  const doReject = async () => {
-    if (!window.confirm('Reject this task? Admin will reassign it.')) return;
-    setWorking(true);
-    try {
-      await api.put(`/technician/tasks/${id}/reject`);
-      toast.success('Task rejected');
-      navigate('/technician/tasks');
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
-    finally { setWorking(false); }
-  };
-
-  const updateStatus = async (status) => {
-    setWorking(true);
-    try {
-      await api.put(`/technician/tasks/${id}/status`, { status, notes: notes || undefined });
-      toast.success(`Status updated to ${status.replace('_', ' ')}`);
-      fetch();
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed to update status'); }
-    finally { setWorking(false); }
-  };
-
-  if (loading) return <PageSpinner />;
-  if (!task)   return <div className="text-center text-slate-400 py-20">Task not found</div>;
-
-  const canChat = ['assigned','accepted','in_progress','completed'].includes(task.status);
+  if (loading) return <LoadingSpinner text="Loading task..." />;
+  if (!task)   return <div className="text-center py-20 text-slate-500">Task not found.</div>;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <Link to="/technician/tasks" className="text-sm text-slate-400 hover:text-white mb-2 inline-block">← Back to tasks</Link>
-          <h1 className="text-xl font-bold text-white">{task.title}</h1>
-          <p className="text-slate-400 text-sm mt-1">{task.ticketNumber}</p>
+    <div className="max-w-2xl space-y-5 animate-fade-in-up">
+      <Link to="/technician/tasks" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+        ← My Tasks
+      </Link>
+
+      {/* Task info */}
+      <div className="card-cyber p-6">
+        <div className="flex justify-between items-start gap-3 mb-5">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{task.title}</h1>
+            <p className="text-xs font-mono text-blue-500 mt-1">#{task.ticketNumber}</p>
+          </div>
+          <div className="flex gap-2">
+            <PriorityBadge priority={task.priority} />
+            <StatusBadge status={task.status} />
+          </div>
         </div>
-        <StatusBadge status={task.status} />
+        <div className="space-y-2.5 text-sm">
+          {[
+            ['Service',  task.service?.name],
+            ['Description', null],
+            task.location && ['Location', task.location],
+            task.preferredDate && ['Preferred', `${new Date(task.preferredDate).toLocaleDateString()} ${task.preferredTime||''}`],
+          ].filter(Boolean).map(([l,v]) => (
+            <div key={l}>
+              <span className="font-medium text-slate-500 dark:text-slate-400">{l}: </span>
+              {l === 'Description'
+                ? <p className="text-gray-800 dark:text-gray-200 mt-1 whitespace-pre-wrap leading-relaxed">{task.description}</p>
+                : <span className="text-gray-800 dark:text-gray-200">{v}</span>}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Customer */}
-      {task.customer && (
-        <div className="card">
-          <h2 className="font-semibold text-white mb-3">Customer</h2>
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-              {task.customer.name?.[0]}
+      <div className="card-cyber p-5">
+        <h2 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+          <UserIcon className="h-5 w-5 text-blue-500" /> Customer
+        </h2>
+        <div className="space-y-1.5 text-sm">
+          {[['Name', task.customer?.name], ['Email', task.customer?.email], task.customer?.phone && ['Phone', task.customer.phone], task.customer?.address && ['Address', task.customer.address]].filter(Boolean).map(([l,v]) => (
+            <div key={l}>
+              <span className="font-medium text-slate-500 dark:text-slate-400">{l}: </span>
+              <span className="text-gray-800 dark:text-gray-200">{v}</span>
             </div>
-            <div>
-              <p className="font-medium text-white">{task.customer.name}</p>
-              <p className="text-sm text-slate-400">{task.customer.phone || task.customer.email}</p>
-              {task.location && <p className="text-xs text-slate-500 mt-0.5">📍 {task.location}</p>}
+          ))}
+        </div>
+      </div>
+
+      {/* Chat with customer */}
+      <div className="card-cyber p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-gray-900 dark:text-white">Contact customer</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Reach out quickly through chat or use the customer details below.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <a
+            href={task.customer?.phone ? `tel:${task.customer.phone}` : '#'}
+            className={`rounded-3xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-4 transition hover:shadow-cyber ${!task.customer?.phone ? 'cursor-not-allowed opacity-80' : ''}`}
+            aria-disabled={!task.customer?.phone}
+          >
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-medium mb-3">
+              <PhoneIcon className="h-4 w-4" /> Phone
             </div>
+            <p className="text-sm text-gray-900 dark:text-white">
+              {task.customer?.phone || 'Not available'}
+            </p>
+          </a>
+          <a
+            href={task.customer?.email ? `mailto:${task.customer.email}` : '#'}
+            className={`rounded-3xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-4 transition hover:shadow-cyber ${!task.customer?.email ? 'cursor-not-allowed opacity-80' : ''}`}
+            aria-disabled={!task.customer?.email}
+          >
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-medium mb-3">
+              <EnvelopeIcon className="h-4 w-4" /> Email
+            </div>
+            <p className="text-sm text-gray-900 dark:text-white">
+              {task.customer?.email || 'Not available'}
+            </p>
+          </a>
+        </div>
+
+        <RequestChat
+          requestId={task.id}
+          ticketNumber={task.ticketNumber}
+          myRole="technician"
+          otherName={task.customer?.name}
+          isAssigned={true}
+        />
+      </div>
+
+      {/* Accept / Reject */}
+      {task.status === 'assigned' && (
+        <div className="card-cyber p-5 flex gap-3">
+          <button onClick={() => handleAction('accept')} disabled={acting}
+            className="btn-primary flex-1 py-3">✓ Accept Task</button>
+          <button onClick={() => handleAction('reject')} disabled={acting}
+            className="btn-danger flex-1 py-3">✗ Reject Task</button>
+        </div>
+      )}
+
+      {/* Progress update */}
+      {(task.status === 'accepted' || task.status === 'in_progress') && (
+        <div className="card-cyber p-6 space-y-4">
+          <h2 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <WrenchScrewdriverIcon className="h-5 w-5 text-blue-500" /> Update Progress
+          </h2>
+          <div>
+            <label className="label">Service Notes {task.status === 'in_progress' && <span className="text-red-400">*</span>}</label>
+            <textarea className="input" rows={4}
+              placeholder="Describe what was done, parts replaced, issues found…"
+              value={notes} onChange={e => setNotes(e.target.value)} />
+          </div>
+          <div className="flex gap-3">
+            {task.status === 'accepted' && (
+              <button onClick={() => handleAction('in_progress')} disabled={acting}
+                className="btn-primary flex-1 py-3">
+                🔧 Start Working
+              </button>
+            )}
+            {task.status === 'in_progress' && (
+              <button onClick={() => handleAction('completed')} disabled={acting}
+                className="flex-1 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
+                <CheckCircleIcon className="h-5 w-5" /> Mark Completed
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* Details */}
-      <div className="card space-y-3">
-        <h2 className="font-semibold text-white">Task Details</h2>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div><span className="text-slate-500">Service</span><p className="text-white font-medium">{task.service?.name}</p></div>
-          <div><span className="text-slate-500">Priority</span><p className="text-white font-medium capitalize">{task.priority}</p></div>
-          {task.preferredDate && <div><span className="text-slate-500">Preferred Date</span><p className="text-white font-medium">{new Date(task.preferredDate).toLocaleDateString()}</p></div>}
-          {task.preferredTime && <div><span className="text-slate-500">Preferred Time</span><p className="text-white font-medium">{task.preferredTime}</p></div>}
-        </div>
-        <div>
-          <p className="text-slate-500 text-sm mb-1">Description</p>
-          <p className="text-slate-200 text-sm whitespace-pre-wrap">{task.description}</p>
-        </div>
-      </div>
-
-      {/* Technician notes */}
-      {['accepted','in_progress'].includes(task.status) && (
-        <div className="card">
-          <label className="block text-sm font-medium text-slate-300 mb-1.5">Your Notes (optional)</label>
-          <textarea rows={3} className="input-field resize-none" value={notes}
-            onChange={e => setNotes(e.target.value)} placeholder="Add work notes, findings, or updates…" />
+      {/* Completed notes */}
+      {task.technicianNotes && task.status === 'completed' && (
+        <div className="card-cyber p-5 border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10">
+          <h2 className="font-bold text-green-700 dark:text-green-400 mb-2">✅ Service Notes</h2>
+          <p className="text-green-700 dark:text-green-300 text-sm">{task.technicianNotes}</p>
         </div>
       )}
-
-      {/* Actions */}
-      <div className="flex flex-wrap gap-3">
-        {task.status === 'assigned' && <>
-          <button onClick={doAccept} disabled={working} className="btn-success flex-1 py-2.5">✅ Accept Task</button>
-          <button onClick={doReject} disabled={working} className="btn-danger px-6 py-2.5">✖ Reject</button>
-        </>}
-        {task.status === 'accepted' && (
-          <button onClick={() => updateStatus('in_progress')} disabled={working} className="btn-primary flex-1 py-2.5">
-            {working ? 'Updating…' : '▶ Start Work'}
-          </button>
-        )}
-        {task.status === 'in_progress' && (
-          <button onClick={() => updateStatus('completed')} disabled={working} className="btn-success flex-1 py-2.5">
-            {working ? 'Updating…' : '✅ Mark Completed'}
-          </button>
-        )}
-        {canChat && (
-          <Link to={`/technician/tasks/${id}/chat`} className="btn-secondary flex-1 text-center py-2.5">
-            💬 Chat with Customer
-          </Link>
-        )}
-      </div>
     </div>
   );
 }

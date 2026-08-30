@@ -1,75 +1,148 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import useAuthStore from '../store/authStore';
+import { useState, useEffect } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  HomeIcon, ClipboardDocumentCheckIcon, UserCircleIcon,
+  ArrowRightOnRectangleIcon, Bars3Icon, ChatBubbleLeftRightIcon,
+} from '@heroicons/react/24/outline';
+import { useAuthStore } from '../store/authStore';
+import KiratechLogo from '../components/KiratechLogo';
+import ThemeToggle from '../components/ThemeToggle';
+import toast from 'react-hot-toast';
+import api from '../lib/api';
 
-const nav = [
-  { to: '/technician/dashboard', label: 'Dashboard', icon: '🏠' },
-  { to: '/technician/tasks',     label: 'My Tasks',   icon: '🔧' },
-  { to: '/technician/profile',   label: 'Profile',    icon: '👤' },
+const navItems = [
+  { name: 'Dashboard', href: '/technician',         icon: HomeIcon },
+  { name: 'My Tasks',  href: '/technician/tasks',   icon: ClipboardDocumentCheckIcon },
+  { name: 'Team Chat', href: '/technician/chat',    icon: ChatBubbleLeftRightIcon, chatBadge: true },
+  { name: 'Profile',   href: '/technician/profile', icon: UserCircleIcon },
 ];
 
 export default function TechnicianLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user, logout } = useAuthStore();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  // Fetch unread chat count on mount and every 30 seconds
+  useEffect(() => {
+    let active = true;
+    const fetchUnread = async () => {
+      try {
+        const { data } = await api.get('/technician/chat/unread-count');
+        if (active) setUnreadCount(data.count || 0);
+      } catch {
+        // non-critical — ignore errors
+      }
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => { active = false; clearInterval(interval); };
+  }, []);
 
-  const Sidebar = () => (
-    <div className="sidebar" style={{ width: '240px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        <div className="logo-icon" style={{ width: '34px', height: '34px', borderRadius: '9px', flexShrink: 0 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/>
-            <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <div>
-          <p style={{ fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.06em', color: '#fff', margin: 0 }}>KIRATECH</p>
-          <p style={{ fontSize: '0.68rem', color: '#a78bfa', margin: 0, fontWeight: 600 }}>Technician Portal</p>
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out');
+    navigate('/technician/login');
+  };
+
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 transition-colors duration-300">
+      {/* Brand */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-gray-700/60">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <KiratechLogo size={28} showText={false} linkTo={false} />
+          <div>
+            <p className="font-bold text-gray-900 dark:text-gray-100 text-sm leading-none">KIRATECH</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Technician Portal</p>
+          </div>
+        </Link>
+        <ThemeToggle />
+      </div>
+
+      {/* User */}
+      <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-700/60">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-semibold text-green-700 dark:text-green-300">
+              {user?.name?.[0]?.toUpperCase()}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.name}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Technician</p>
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <p style={{ fontSize: '0.72rem', color: '#475569', marginBottom: '0.2rem' }}>Logged in as</p>
-        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', margin: 0 }}>{user?.name}</p>
-      </div>
-
-      <nav style={{ padding: '0.75rem', flex: 1 }}>
-        {nav.map(item => (
-          <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)}
-            className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-            style={{ marginBottom: '2px' }}>
-            <span style={{ fontSize: '1rem' }}>{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5">
+        {navItems.map((item) => {
+          const active = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+          const badge = item.chatBadge && unreadCount > 0 ? unreadCount : null;
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                active
+                  ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/60 dark:hover:text-gray-100'
+              }`}
+            >
+              <item.icon className="h-5 w-5 flex-shrink-0" />
+              <span className="flex-1">{item.name}</span>
+              {badge && (
+                <span className="h-5 min-w-5 px-1.5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
-      <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <button onClick={handleLogout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.875rem', borderRadius: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', fontSize: '0.875rem', fontWeight: 500 }}
-          onMouseOver={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
-          onMouseOut={e => e.currentTarget.style.background = 'none'}>
-          <span>🚪</span><span>Logout</span>
+      {/* Logout */}
+      <div className="p-3 border-t border-gray-100 dark:border-gray-700/60">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-150"
+        >
+          <ArrowRightOnRectangleIcon className="h-5 w-5" />
+          Logout
         </button>
       </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0f1e' }}>
-      <div style={{ flexShrink: 0 }}><Sidebar /></div>
-      {open && <div style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)' }} onClick={() => setOpen(false)} />}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <header style={{ background: 'rgba(10,15,30,0.95)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button onClick={() => setOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.35rem' }}>
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 border-r border-gray-200 dark:border-gray-700">
+        <SidebarContent />
+      </aside>
+
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
+          <aside className="fixed left-0 top-0 h-full w-64 z-50 shadow-xl">
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
+
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="lg:hidden flex items-center justify-between h-14 px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <Bars3Icon className="h-6 w-6" />
           </button>
-          <span style={{ fontWeight: 700, color: '#fff', fontSize: '0.95rem' }}>KIRATECH Technician</span>
+          <KiratechLogo size={24} />
+          <ThemeToggle />
         </header>
-        <main style={{ flex: 1, padding: '1.5rem', overflow: 'auto' }}>
+        <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>

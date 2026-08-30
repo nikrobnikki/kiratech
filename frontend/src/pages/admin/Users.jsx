@@ -1,101 +1,97 @@
-import { useEffect, useState } from 'react';
-import { toast } from 'react-hot-toast';
+import { useState, useEffect } from 'react';
 import api from '../../lib/api';
-import Pagination from '../../components/Pagination';
-import { PageSpinner } from '../../components/Spinner';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { UsersIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 export default function AdminUsers() {
-  const [users, setUsers]         = useState([]);
-  const [pagination, setPagination] = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [search, setSearch]       = useState('');
-  const [roleFilter, setRoleFilter] = useState('customer');
-  const [page, setPage]           = useState(1);
+  const [users, setUsers]   = useState([]);
+  const [loading, setLoad]  = useState(true);
+  const [search, setSearch] = useState('');
 
-  const fetch = (p = 1, role = roleFilter, q = search) => {
-    setLoading(true);
-    const params = new URLSearchParams({ page: p, limit: 15 });
-    if (role) params.append('role', role);
-    if (q)    params.append('search', q);
-    api.get(`/admin/users?${params}`)
-      .then(r => { setUsers(r.data.data || []); setPagination(r.data.pagination); })
-      .catch(() => {}).finally(() => setLoading(false));
+  const fetchUsers = () => {
+    setLoad(true);
+    const params = search ? `?search=${encodeURIComponent(search)}&role=customer` : '?role=customer';
+    api.get(`/admin/users${params}`).then(({ data }) => setUsers(data.data)).finally(() => setLoad(false));
   };
 
-  useEffect(() => { fetch(1, roleFilter, search); setPage(1); }, [roleFilter]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPage(1);
-    fetch(1, roleFilter, search);
-  };
+  useEffect(() => { fetchUsers(); }, [search]);
 
   const toggleStatus = async (user) => {
     try {
       await api.put(`/admin/users/${user.id}/status`, { isActive: !user.isActive });
       toast.success(`User ${!user.isActive ? 'activated' : 'deactivated'}`);
-      fetch(page, roleFilter, search);
-    } catch (err) { toast.error(err.response?.data?.error || 'Failed'); }
+      fetchUsers();
+    } catch { toast.error('Action failed'); }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       <div>
-        <h1 className="text-2xl font-bold text-white">Users</h1>
-        <p className="text-slate-400 mt-1">{pagination?.total ?? 0} found</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <UsersIcon className="h-7 w-7 text-blue-500" /> Customers
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400">Manage registered customer accounts.</p>
       </div>
 
-      <div className="flex gap-3 flex-wrap">
-        <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-[240px]">
-          <input className="input-field flex-1" placeholder="Search by name or email…"
-            value={search} onChange={e => setSearch(e.target.value)} />
-          <button type="submit" className="btn-secondary px-4">Search</button>
-        </form>
-        <div className="flex gap-2">
-          {['customer', 'technician', ''].map(r => (
-            <button key={r} onClick={() => setRoleFilter(r)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${roleFilter === r ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
-              {r === '' ? 'All' : r}
-            </button>
-          ))}
-        </div>
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <input type="text" className="input pl-10" placeholder="Search by name or email…"
+          value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {loading ? <PageSpinner /> : (
-        <>
-          <div className="card overflow-x-auto p-0">
+      {loading ? <LoadingSpinner /> : (
+        <div className="card-cyber p-0 overflow-hidden">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="text-slate-500 text-xs uppercase border-b border-slate-800">
-                  {['Name','Email','Role','Verified','Status','Joined','Action'].map(h => (
-                    <th key={h} className="text-left px-4 py-3">{h}</th>
+              <thead className="table-header">
+                <tr>
+                  {['Name', 'Email', 'Phone', 'Plan', 'Verified', 'Status', 'Joined', ''].map(h => (
+                    <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody>
                 {users.map(u => (
-                  <tr key={u.id} className="hover:bg-slate-800/40">
-                    <td className="px-4 py-3 font-medium text-white">{u.name}</td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">{u.email}</td>
-                    <td className="px-4 py-3 text-slate-400 capitalize">{u.role}</td>
-                    <td className="px-4 py-3">{u.isVerified ? <span className="text-green-400 text-xs">✅ Yes</span> : <span className="text-yellow-400 text-xs">⚠ No</span>}</td>
-                    <td className="px-4 py-3">{u.isActive ? <span className="text-green-400 text-xs">Active</span> : <span className="text-red-400 text-xs">Inactive</span>}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  <tr key={u.id} className="table-row">
+                    <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{u.name}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-xs">{u.email}</td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">{u.phone || '—'}</td>
                     <td className="px-4 py-3">
-                      {u.role !== 'admin' && (
-                        <button onClick={() => toggleStatus(u)}
-                          className={`text-xs px-2 py-1 rounded ${u.isActive ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}`}>
-                          {u.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                      )}
+                      <span className={`badge text-xs ${u.subscriptionType === 'premium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+                        {u.subscriptionType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`badge text-xs ${u.isVerified ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                        {u.isVerified ? '✓ Verified' : '⚠ Pending'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`badge text-xs ${u.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                        {u.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => toggleStatus(u)}
+                        className={`text-xs font-semibold hover:underline ${u.isActive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                        {u.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {users.length === 0 && (
+              <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                <UsersIcon className="h-10 w-10 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                No customers found.
+              </div>
+            )}
           </div>
-          <Pagination pagination={pagination} onPageChange={(p) => { setPage(p); fetch(p, roleFilter, search); }} />
-        </>
+        </div>
       )}
     </div>
   );

@@ -1,41 +1,76 @@
 import axios from 'axios';
 
-// Production backend — hardcoded so no env var needed on Render
-const BACKEND = 'https://kiratech-backend-9or3.onrender.com';
-const API_URL = import.meta.env.VITE_API_URL || BACKEND;
+// ── Determine API base URL ────────────────────────────────────────────────────
+// Priority:
+//   1. VITE_API_URL env var (set in Render → Environment)
+//   2. Auto-detect: if running on kiratech-frontend.onrender.com,
+//      try kiratech-backend.onrender.com (common naming pattern)
+//   3. Dev fallback: Vite proxy /api → localhost:5000
+
+function getBaseURL() {
+  // 1. Explicit env var (always preferred — set in Render → Environment)
+  if (import.meta.env.VITE_API_URL) {
+    return `${import.meta.env.VITE_API_URL}/api`;
+  }
+
+  // 2. Auto-detect from hostname (production on Render)
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.includes('onrender.com')) {
+      // Hardcoded backend URL for this deployment
+      return 'https://kiratech-backend-9or3.onrender.com/api';
+    }
+  }
+
+  // 3. Dev: Vite proxy handles /api → localhost:5000
+  return '/api';
+}
+
+const baseURL = getBaseURL();
+
+if (import.meta.env.DEV) {
+  console.log('[api] baseURL:', baseURL);
+}
 
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: false,
 });
 
-// Attach JWT token to every request
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// Request interceptor — attach JWT token if present
+api.interceptors.request.use(
+  (config) => {
+    try {
+      const stored = localStorage.getItem('kiratech-auth');
+      if (stored) {
+        const { token } = JSON.parse(stored);
+        if (token) config.headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (_) { /* ignore */ }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Handle 401 globally — clear auth and redirect to login
+// Response interceptor — handle 401 → redirect to correct login page
 api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      const currentPath = window.location.pathname;
-      if (!currentPath.startsWith('/login') && !currentPath.startsWith('/register') && !currentPath.startsWith('/admin/login')) {
-        if (currentPath.startsWith('/admin')) {
-          window.location.href = '/admin/login';
-        } else if (currentPath.startsWith('/technician')) {
-          window.location.href = '/login';
-        } else {
-          window.location.href = '/login';
-        }
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('kiratech-auth');
+      delete api.defaults.headers.common['Authorization'];
+      const path = window.location.pathname;
+      if (path.startsWith('/admin') && path !== '/admin/login') {
+        window.location.href = '/admin/login';
+      } else if (path.startsWith('/technician') && path !== '/technician/login') {
+        window.location.href = '/technician/login';
+      } else if (!['/login', '/register'].includes(path)) {
+        window.location.href = '/login';
       }
     }
-    return Promise.reject(err);
+    return Promise.reject(error);
   }
 );
 

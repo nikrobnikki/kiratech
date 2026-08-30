@@ -1,119 +1,140 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import useAuthStore from './store/authStore';
+import { useAuthStore } from './store/authStore';
 
-// Public pages
-import LandingPage     from './pages/LandingPage';
-import LoginPage       from './pages/auth/LoginPage';
-import RegisterPage    from './pages/auth/RegisterPage';
-import VerifyOtpPage   from './pages/auth/VerifyOtpPage';
-import ForgotPassword  from './pages/auth/ForgotPasswordPage';
-import ResetPassword   from './pages/auth/ResetPasswordPage';
+// Public Pages
+import Home from './pages/public/Home';
+import About from './pages/public/About';
+import Services from './pages/public/Services';
+import Contact from './pages/public/Contact';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import VerifyEmail from './pages/auth/VerifyEmail';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import AdminLogin from './pages/auth/AdminLogin';
+import TechnicianLogin from './pages/auth/TechnicianLogin';
 
-// Customer pages
-import CustomerLayout     from './layouts/CustomerLayout';
-import CustomerDashboard  from './pages/customer/Dashboard';
-import CustomerRequests   from './pages/customer/Requests';
-import NewRequest         from './pages/customer/NewRequest';
-import RequestDetail      from './pages/customer/RequestDetail';
-import CustomerChat       from './pages/customer/Chat';
-import CustomerProfile    from './pages/customer/Profile';
-import PaymentPage        from './pages/customer/Payment';
+// Customer Dashboard
+import CustomerLayout from './layouts/CustomerLayout';
+import CustomerDashboard from './pages/customer/Dashboard';
+import RequestService from './pages/customer/RequestService';
+import MyRequests from './pages/customer/MyRequests';
+import RequestDetail from './pages/customer/RequestDetail';
 import CustomerNotifications from './pages/customer/Notifications';
+import CustomerProfile from './pages/customer/Profile';
 
-// Technician pages
-import TechnicianLayout    from './layouts/TechnicianLayout';
+// Technician Dashboard
+import TechnicianLayout from './layouts/TechnicianLayout';
 import TechnicianDashboard from './pages/technician/Dashboard';
-import TechnicianTasks     from './pages/technician/Tasks';
-import TechnicianTaskDetail from './pages/technician/TaskDetail';
-import TechnicianChat      from './pages/technician/Chat';
-import TechnicianProfile   from './pages/technician/Profile';
+import TechnicianTasks from './pages/technician/Tasks';
+import TaskDetail from './pages/technician/TaskDetail';
+import TechnicianProfile from './pages/technician/Profile';
+import TechnicianChat from './pages/technician/Chat';
 
-// Admin pages
-import AdminLayout     from './layouts/AdminLayout';
-import AdminLogin      from './pages/admin/Login';
-import AdminDashboard  from './pages/admin/Dashboard';
-import AdminUsers      from './pages/admin/Users';
+// Admin Dashboard
+import AdminLayout from './layouts/AdminLayout';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
 import AdminTechnicians from './pages/admin/Technicians';
-import AdminRequests   from './pages/admin/Requests';
+import AdminRequests from './pages/admin/Requests';
 import AdminRequestDetail from './pages/admin/RequestDetail';
-import AdminPayments   from './pages/admin/Payments';
-import AdminServices   from './pages/admin/Services';
+import AdminServices from './pages/admin/Services';
+import AdminReports from './pages/admin/Reports';
+import AdminPayments from './pages/admin/Payments';
+import AdminPaymentSetup from './pages/admin/PaymentSetup';
 
-// ─── Guards ───────────────────────────────────────────────────────────────────
-function RequireAuth({ children, role }) {
-  const { user, token } = useAuthStore();
-  if (!token || !user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) {
-    if (user.role === 'admin')       return <Navigate to="/admin/dashboard" replace />;
-    if (user.role === 'technician')  return <Navigate to="/technician/dashboard" replace />;
-    return <Navigate to="/dashboard" replace />;
+// Guards
+import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
+
+// Guard: already-logged-in admins skip back to /admin
+function AdminLoginGuard() {
+  const { isAuthenticated, user } = useAuthStore();
+  if (isAuthenticated && user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
   }
-  return children;
+  return <AdminLogin />;
 }
 
-function RequireAdmin({ children }) {
-  const { user, token } = useAuthStore();
-  if (!token || !user) return <Navigate to="/admin/login" replace />;
-  if (user.role !== 'admin') return <Navigate to="/admin/login" replace />;
-  return children;
-}
-
-function GuestOnly({ children }) {
-  const { user, token } = useAuthStore();
-  if (token && user) {
-    if (user.role === 'admin')      return <Navigate to="/admin/dashboard" replace />;
-    if (user.role === 'technician') return <Navigate to="/technician/dashboard" replace />;
-    return <Navigate to="/dashboard" replace />;
+// Guard: already-logged-in technicians skip back to /technician
+function TechnicianLoginGuard() {
+  const { isAuthenticated, user } = useAuthStore();
+  if (isAuthenticated && user?.role === 'technician') {
+    return <Navigate to="/technician" replace />;
   }
-  return children;
+  return <TechnicianLogin />;
 }
 
 export default function App() {
+  const { initializeAuth } = useAuthStore();
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
   return (
     <Routes>
       {/* Public */}
-      <Route path="/"               element={<LandingPage />} />
-      <Route path="/login"          element={<GuestOnly><LoginPage /></GuestOnly>} />
-      <Route path="/register"       element={<GuestOnly><RegisterPage /></GuestOnly>} />
-      <Route path="/verify-otp"     element={<VerifyOtpPage />} />
-      <Route path="/forgot-password" element={<GuestOnly><ForgotPassword /></GuestOnly>} />
-      <Route path="/reset-password"  element={<GuestOnly><ResetPassword /></GuestOnly>} />
+      <Route path="/" element={<Home />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/services" element={<Services />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Customer */}
-      <Route path="/" element={<RequireAuth role="customer"><CustomerLayout /></RequireAuth>}>
-        <Route path="dashboard"              element={<CustomerDashboard />} />
-        <Route path="requests"               element={<CustomerRequests />} />
-        <Route path="requests/new"           element={<NewRequest />} />
-        <Route path="requests/:id"           element={<RequestDetail />} />
-        <Route path="requests/:id/chat"      element={<CustomerChat />} />
-        <Route path="requests/:id/pay"       element={<PaymentPage />} />
-        <Route path="profile"                element={<CustomerProfile />} />
-        <Route path="notifications"          element={<CustomerNotifications />} />
+      {/* Auth (redirect if already logged in) */}
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
       </Route>
 
-      {/* Technician */}
-      <Route path="/technician" element={<RequireAuth role="technician"><TechnicianLayout /></RequireAuth>}>
-        <Route path="dashboard"          element={<TechnicianDashboard />} />
-        <Route path="tasks"              element={<TechnicianTasks />} />
-        <Route path="tasks/:id"          element={<TechnicianTaskDetail />} />
-        <Route path="tasks/:id/chat"     element={<TechnicianChat />} />
-        <Route path="profile"            element={<TechnicianProfile />} />
+      {/* Admin login — separate portal, redirects to /admin if already authenticated as admin */}
+      <Route path="/admin/login" element={<AdminLoginGuard />} />
+
+      {/* Technician login — separate portal, redirects to /technician if already authenticated */}
+      <Route path="/technician/login" element={<TechnicianLoginGuard />} />
+
+      {/* Customer Dashboard */}
+      <Route element={<ProtectedRoute allowedRoles={['customer']} />}>
+        <Route path="/dashboard" element={<CustomerLayout />}>
+          <Route index element={<CustomerDashboard />} />
+          <Route path="request-service" element={<RequestService />} />
+          <Route path="my-requests" element={<MyRequests />} />
+          <Route path="my-requests/:id" element={<RequestDetail />} />
+          <Route path="notifications" element={<CustomerNotifications />} />
+          <Route path="profile" element={<CustomerProfile />} />
+        </Route>
       </Route>
 
-      {/* Admin */}
-      <Route path="/admin/login" element={<GuestOnly><AdminLogin /></GuestOnly>} />
-      <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
-        <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard"          element={<AdminDashboard />} />
-        <Route path="users"              element={<AdminUsers />} />
-        <Route path="technicians"        element={<AdminTechnicians />} />
-        <Route path="requests"           element={<AdminRequests />} />
-        <Route path="requests/:id"       element={<AdminRequestDetail />} />
-        <Route path="payments"           element={<AdminPayments />} />
-        <Route path="services"           element={<AdminServices />} />
+      {/* Technician Dashboard */}
+      <Route element={<ProtectedRoute allowedRoles={['technician']} />}>
+        <Route path="/technician" element={<TechnicianLayout />}>
+          <Route index element={<TechnicianDashboard />} />
+          <Route path="tasks" element={<TechnicianTasks />} />
+          <Route path="tasks/:id" element={<TaskDetail />} />
+          <Route path="chat" element={<TechnicianChat />} />
+          <Route path="profile" element={<TechnicianProfile />} />
+        </Route>
       </Route>
 
-      {/* Catch-all */}
+      {/* Admin Dashboard */}
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="technicians" element={<AdminTechnicians />} />
+          <Route path="requests" element={<AdminRequests />} />
+          <Route path="requests/:id" element={<AdminRequestDetail />} />
+          <Route path="payments" element={<AdminPayments />} />
+          <Route path="payment-setup" element={<AdminPaymentSetup />} />
+          <Route path="services" element={<AdminServices />} />
+          <Route path="reports" element={<AdminReports />} />
+        </Route>
+      </Route>
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

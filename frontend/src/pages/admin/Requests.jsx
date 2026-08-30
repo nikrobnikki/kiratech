@@ -1,83 +1,95 @@
-import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../lib/api';
-import StatusBadge from '../../components/StatusBadge';
-import Pagination from '../../components/Pagination';
-import { PageSpinner } from '../../components/Spinner';
-import EmptyState from '../../components/EmptyState';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { StatusBadge, PriorityBadge } from '../../components/StatusBadge';
+import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 
-const STATUSES = ['', 'pending', 'assigned', 'accepted', 'in_progress', 'completed', 'cancelled', 'rejected'];
+const tzs = (v) => `TZS ${Number(v).toLocaleString('en-TZ')}`;
 
 export default function AdminRequests() {
-  const [searchParams] = useSearchParams();
-  const initialStatus = searchParams.get('status') || '';
-  const [requests, setRequests]   = useState([]);
-  const [pagination, setPagination] = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [filter, setFilter]       = useState(initialStatus);
-  const [page, setPage]           = useState(1);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [statusFilter, setStatusFilter] = useState('');
 
-  const fetch = (p = 1, status = filter) => {
+  useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ page: p, limit: 15 });
-    if (status) params.append('status', status);
-    api.get(`/admin/requests?${params}`)
-      .then(r => { setRequests(r.data.data || []); setPagination(r.data.pagination); })
-      .catch(() => {}).finally(() => setLoading(false));
-  };
+    const params = statusFilter ? `?status=${statusFilter}` : '';
+    api.get(`/admin/requests${params}`).then(({ data }) => setRequests(data.data)).finally(() => setLoading(false));
+  }, [statusFilter]);
 
-  useEffect(() => { fetch(1, filter); setPage(1); }, [filter]);
+  const statuses = ['', 'pending', 'assigned', 'accepted', 'in_progress', 'completed', 'cancelled'];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       <div>
-        <h1 className="text-2xl font-bold text-white">Service Requests</h1>
-        <p className="text-slate-400 mt-1">{pagination?.total ?? 0} total</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <ClipboardDocumentListIcon className="h-7 w-7 text-blue-500" />
+          Service Requests
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400">Manage and assign all customer requests.</p>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {STATUSES.map(s => (
-          <button key={s} onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === s ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+      {/* Filter */}
+      <div className="flex flex-wrap gap-2">
+        {statuses.map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
+              statusFilter === s
+                ? 'bg-blue-600 text-white shadow-cyber-sm'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-blue-100 dark:border-slate-700 hover:border-blue-400'
+            }`}>
             {s === '' ? 'All' : s.replace('_', ' ')}
           </button>
         ))}
       </div>
 
-      {loading ? <PageSpinner /> : (
-        <>
-          {requests.length === 0 ? (
-            <EmptyState icon="🎫" title="No requests" description="No requests match this filter" />
-          ) : (
-            <div className="card overflow-x-auto p-0">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-slate-500 text-xs uppercase border-b border-slate-800">
-                    {['Ticket','Customer','Service','Status','Priority','Technician','Date'].map(h => (
-                      <th key={h} className="text-left px-4 py-3">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {requests.map(r => (
-                    <tr key={r.id} className="hover:bg-slate-800/40">
-                      <td className="px-4 py-3">
-                        <Link to={`/admin/requests/${r.id}`} className="text-blue-400 hover:text-blue-300 font-mono text-xs">{r.ticketNumber}</Link>
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">{r.customer?.name}</td>
-                      <td className="px-4 py-3 text-slate-400 max-w-[150px] truncate">{r.service?.name}</td>
-                      <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                      <td className="px-4 py-3 text-slate-400 capitalize">{r.priority}</td>
-                      <td className="px-4 py-3 text-slate-400">{r.technician?.user?.name || <span className="text-slate-600">—</span>}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{new Date(r.createdAt).toLocaleDateString()}</td>
-                    </tr>
+      {loading ? <LoadingSpinner /> : requests.length === 0 ? (
+        <div className="card-cyber p-12 text-center text-slate-500 dark:text-slate-400">No requests found.</div>
+      ) : (
+        <div className="card-cyber p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="table-header">
+                <tr>
+                  {['Ticket', 'Customer', 'Service', 'Technician', 'Priority', 'Status', 'Cost', 'Date', ''].map(h => (
+                    <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <Pagination pagination={pagination} onPageChange={(p) => { setPage(p); fetch(p); }} />
-        </>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map(r => (
+                  <tr key={r.id} className="table-row">
+                    <td className="px-4 py-3 font-mono font-semibold text-blue-600 dark:text-blue-400 text-xs">
+                      {r.ticketNumber}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{r.customer?.name}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 max-w-[140px] truncate text-xs">
+                      {r.service?.name}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-xs">
+                      {r.technician?.user?.name || <span className="text-slate-400">Unassigned</span>}
+                    </td>
+                    <td className="px-4 py-3"><PriorityBadge priority={r.priority} /></td>
+                    <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
+                    <td className="px-4 py-3 text-xs font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                      {r.finalCost ? tzs(r.finalCost) : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
+                      {new Date(r.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link to={`/admin/requests/${r.id}`}
+                        className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );
