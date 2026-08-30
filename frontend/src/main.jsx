@@ -5,6 +5,8 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import './index.css';
 
+// v2 — backend: kiratech-backend-9or3.onrender.com
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>

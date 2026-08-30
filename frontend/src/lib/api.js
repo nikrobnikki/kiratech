@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Production backend URL — overridden by VITE_API_URL env var on Render
-const API_URL = import.meta.env.VITE_API_URL || 'https://kiratech-backend-9or3.onrender.com';
+// Production backend — hardcoded so no env var needed on Render
+const BACKEND = 'https://kiratech-backend-9or3.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || BACKEND;
 
 const api = axios.create({
   baseURL: `${API_URL}/api`,
