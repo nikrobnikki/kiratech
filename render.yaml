@@ -1,0 +1,89 @@
+services:
+  - type: web
+    name: kiratech-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_NAME
+        value: kiratech_db
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CLIENT_URL
+        value: https://kiratech-frontend.onrender.com
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: KIRATECH IT Support <robertcharles088@gmail.com>
+      - key: ADMIN_EMAIL
+        value: robertcharles088@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: Robert Charles (KIRATECH Admin)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_CURRENCY
+        value: usd
+      - key: MPESA_TZ_BUSINESS_NUMBER
+        value: "+255714759884"
+      - key: MPESA_TZ_ACCOUNT_REF
+        value: KIRATECH
+      - key: AIRTEL_MERCHANT_NUMBER
+        value: "+255784759884"
+      - key: TIGO_BILLER_MSISDN
+        value: "+255652759884"
+      - key: MTN_MERCHANT_NUMBER
+        value: "+255714759884"
+      - key: BINANCE_MERCHANT_ID
+        sync: false
+      - key: USDT_BEP20_ADDRESS
+        sync: false
+      - key: USDT_TRC20_ADDRESS
+        sync: false
+      - key: USDT_ERC20_ADDRESS
+        sync: false
+
+  - type: static
+    name: kiratech-frontend
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://kiratech-backend.onrender.com
+      - key: VITE_STRIPE_PUBLISHABLE_KEY
+        sync: false

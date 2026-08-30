@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="KIRATECH - Online Computing and IT Support Management System. Professional IT services at your fingertips." />
+    <title>KIRATECH IT Support</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!--
+      SPA Deep-Link Fix for static hosts (Render, GitHub Pages, etc.)
+      When a user directly visits /admin/login, the static host can't find that file
+      and serves 404.html instead. 404.html saves the intended path to sessionStorage
+      then redirects to /. This script reads it back and restores the URL BEFORE
+      React Router mounts, so the correct page loads.
+    -->
+    <script>
+      (function () {
+        var path = sessionStorage.getItem('__spa_path__');
+        if (path && path !== '/') {
+          sessionStorage.removeItem('__spa_path__');
+          window.history.replaceState(null, null, path);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
