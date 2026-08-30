@@ -41,18 +41,24 @@ function getTransporter() {
 async function verifyEmailConnection() {
   const t = getTransporter();
   if (!t) {
-    console.warn('⚠️  Email not configured — set EMAIL_USER and EMAIL_PASS in .env');
-    console.warn('   Email features (verification, notifications) will be silently skipped.');
+    console.warn('⚠️  Email not configured — set EMAIL_USER and EMAIL_PASS in env');
+    console.warn('   Email features will be silently skipped until configured.');
     return false;
   }
   try {
-    await t.verify();
+    // Use a short timeout so email check never blocks server startup
+    await Promise.race([
+      t.verify(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+    ]);
     console.log(`✅ Email connected: ${process.env.EMAIL_USER}`);
     return true;
   } catch (err) {
-    console.error('❌ Email connection failed:', err.message);
-    console.error('   Check your Gmail App Password at: https://myaccount.google.com/apppasswords');
-    _transporter = null; // Reset so it can be retried
+    // Non-fatal — server still starts and works without email
+    console.warn(`⚠️  Email not available: ${err.message}`);
+    console.warn('   Set a valid Gmail App Password at: https://myaccount.google.com/apppasswords');
+    console.warn('   The app works fully without email — just no notification emails.');
+    _transporter = null;
     return false;
   }
 }
