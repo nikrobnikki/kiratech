@@ -1,67 +1,30 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// ─── Transporter ─────────────────────────────────────────────────────────────
-// Built lazily so missing env vars don't crash the import — only fail at send time.
-let _transporter = null;
+// ─── Resend client ────────────────────────────────────────────────────────────
+// Uses Resend API (works on Render free tier — no SMTP port blocking)
+let _resend = null;
 
-function getTransporter() {
-  if (_transporter) return _transporter;
-
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS ||
-      process.env.EMAIL_USER === 'your_email@gmail.com' ||
-      process.env.EMAIL_PASS === 'your_app_password' ||
-      process.env.EMAIL_PASS === 'your_16_char_app_password_here') {
-    return null; // Not configured yet
-  }
-
-  // Use port 465 (SSL) — port 587 is blocked on many cloud hosts including Render free tier
-  _transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: 465,
-    secure: true,            // SSL on port 465
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // Must be a Gmail App Password, NOT your account password
-    },
-    tls: {
-      rejectUnauthorized: true,
-    },
-    pool: true,
-    maxConnections: 3,
-    maxMessages: 100,
-    rateDelta: 1000,
-    rateLimit: 5,
-  });
-
-  return _transporter;
+function getResend() {
+  if (_resend) return _resend;
+  const key = process.env.RESEND_API_KEY;
+  if (!key || key === 'your_resend_api_key') return null;
+  _resend = new Resend(key);
+  return _resend;
 }
 
 /**
- * Verify SMTP connection on startup. Call from server.js after DB connects.
+ * Verify email is configured on startup.
  */
 async function verifyEmailConnection() {
-  const t = getTransporter();
-  if (!t) {
-    console.warn('⚠️  Email not configured — set EMAIL_USER and EMAIL_PASS in env');
-    console.warn('   Email features will be silently skipped until configured.');
+  const r = getResend();
+  if (!r) {
+    console.warn('⚠️  Email not configured — add RESEND_API_KEY to environment variables');
+    console.warn('   Get a free key at: https://resend.com (3000 emails/month free)');
+    console.warn('   The app works fully without email — notifications will be skipped.');
     return false;
   }
-  try {
-    // Use a short timeout so email check never blocks server startup
-    await Promise.race([
-      t.verify(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-    ]);
-    console.log(`✅ Email connected: ${process.env.EMAIL_USER}`);
-    return true;
-  } catch (err) {
-    // Non-fatal — server still starts and works without email
-    console.warn(`⚠️  Email not available: ${err.message}`);
-    console.warn('   Set a valid Gmail App Password at: https://myaccount.google.com/apppasswords');
-    console.warn('   The app works fully without email — just no notification emails.');
-    _transporter = null;
-    return false;
-  }
+  console.log('✅ Email ready (Resend API)');
+  return true;
 }
 
 // ─── Base HTML template ───────────────────────────────────────────────────────
@@ -128,27 +91,28 @@ const baseTemplate = (content) => `
 
 // ─── Core send function ───────────────────────────────────────────────────────
 const sendEmail = async ({ to, subject, html, text }) => {
-  const t = getTransporter();
-  if (!t) {
+  const r = getResend();
+  if (!r) {
     console.warn(`📭 Email skipped (not configured): "${subject}" → ${to}`);
     return false;
   }
   try {
-    const info = await t.sendMail({
-      from: process.env.EMAIL_FROM || `KIRATECH IT Support <${process.env.EMAIL_USER}>`,
+    const fromAddress = process.env.EMAIL_FROM || 'KIRATECH IT Support <onboarding@resend.dev>';
+    const { data, error } = await r.emails.send({
+      from: fromAddress,
       to,
       subject,
       html,
-      text: text || subject, // Plaintext fallback
+      text: text || subject,
     });
-    console.log(`📧 Email sent → ${to} | "${subject}" | ID: ${info.messageId}`);
+    if (error) {
+      console.error(`❌ Email failed → ${to} | "${subject}" | ${error.message}`);
+      return false;
+    }
+    console.log(`📧 Email sent → ${to} | "${subject}" | ID: ${data.id}`);
     return true;
   } catch (err) {
-    console.error(`❌ Email failed → ${to} | "${subject}"`);
-    console.error(`   Error: ${err.message}`);
-    if (err.code === 'EAUTH') {
-      console.error('   Fix: Generate a Gmail App Password at https://myaccount.google.com/apppasswords');
-    }
+    console.error(`❌ Email error → ${to} | "${subject}" | ${err.message}`);
     return false;
   }
 };
