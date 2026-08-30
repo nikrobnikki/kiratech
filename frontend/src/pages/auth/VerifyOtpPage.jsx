@@ -20,9 +20,7 @@ export default function VerifyOtpPage() {
       navigate('/login');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Verification failed');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleResend = async () => {
@@ -32,53 +30,49 @@ export default function VerifyOtpPage() {
       toast.success('New code sent to your email.');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to resend code');
-    } finally {
-      setResending(false);
-    }
+    } finally { setResending(false); }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-4">📧</div>
-          <h1 className="text-2xl font-bold text-white">Check your email</h1>
-          <p className="text-slate-400 mt-1">Enter the 6-digit code we sent to your email</p>
+    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+      <div className="stars-bg" />
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: '400px' }}>
+
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📧</div>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fff', marginBottom: '0.35rem' }}>Check your email</h1>
+          <p style={{ fontSize: '0.83rem', color: '#64748b' }}>Enter the 6-digit code we sent to {email}</p>
         </div>
 
-        <div className="card">
-          <form onSubmit={handleVerify} className="space-y-4">
+        <div className="glass-card" style={{ padding: '2rem' }}>
+          <form onSubmit={handleVerify}>
             {!state?.email && (
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Email address</label>
-                <input
-                  type="email" required value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="input-field"
-                />
+              <div style={{ marginBottom: '1.1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Email Address</label>
+                <input type="email" required className="input-field" value={email} onChange={e => setEmail(e.target.value)} />
               </div>
             )}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Verification code</label>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Verification Code</label>
               <input
-                type="text" required pattern="\d{6}" maxLength={6}
+                type="text" required maxLength={6} pattern="\d{6}"
                 value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="input-field text-center text-2xl tracking-[0.5em] font-mono"
+                className="input-field"
+                style={{ textAlign: 'center', fontSize: '2rem', letterSpacing: '0.5em', fontFamily: 'monospace' }}
                 placeholder="000000"
               />
             </div>
-
-            <button type="submit" disabled={loading || otp.length !== 6} className="btn-primary w-full py-2.5">
-              {loading ? 'Verifying…' : 'Verify email'}
+            <button type="submit" disabled={loading || otp.length !== 6} className="btn-teal">
+              {loading ? 'Verifying…' : 'Verify Email'}
             </button>
           </form>
 
-          <div className="text-center mt-6 space-y-2">
-            <button onClick={handleResend} disabled={resending} className="text-sm text-blue-400 hover:text-blue-300 disabled:opacity-50">
+          <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+            <button onClick={handleResend} disabled={resending} style={{ background: 'none', border: 'none', color: '#34d399', cursor: 'pointer', fontSize: '0.83rem' }}>
               {resending ? 'Sending…' : "Didn't receive it? Resend code"}
             </button>
             <br />
-            <Link to="/login" className="text-sm text-slate-500 hover:text-slate-400">Back to login</Link>
+            <Link to="/login" style={{ color: '#475569', fontSize: '0.8rem', textDecoration: 'none', marginTop: '0.5rem', display: 'inline-block' }}>Back to login</Link>
           </div>
         </div>
       </div>

@@ -5,14 +5,21 @@ import api from '../lib/api';
 
 const services = [
   { icon: '💻', name: 'Computer Maintenance', desc: 'Full diagnosis, cleaning, and performance optimization.' },
-  { icon: '🖨️', name: 'Printer Repair',        desc: 'Installation, driver setup, and jam fixes.' },
-  { icon: '📱', name: 'Mobile Phone Repair',   desc: 'Screen, battery, charging port, and software.' },
-  { icon: '🌐', name: 'Network & WiFi Setup',  desc: 'Home and office networking and cabling.' },
-  { icon: '☁️', name: 'Data Recovery',          desc: 'Recover lost files from any storage device.' },
-  { icon: '⬇️', name: 'Software Installation', desc: 'Windows, Office, drivers, and antivirus.' },
-  { icon: '🖥️', name: 'Hardware Upgrades',     desc: 'RAM, SSD, GPU, PSU upgrades and swaps.' },
-  { icon: '🔌', name: 'Remote Support',        desc: 'AnyDesk / TeamViewer support for Windows & Mac.' },
-  { icon: '📞', name: 'On-Call Priority',      desc: 'Dedicated technician on standby for emergencies.' },
+  { icon: '🖨️', name: 'Printer Repair',       desc: 'Installation, driver setup, and jam fixes.' },
+  { icon: '📱', name: 'Mobile Phone Repair',  desc: 'Screen, battery, charging port, and software.' },
+  { icon: '🌐', name: 'Network & WiFi Setup', desc: 'Home and office networking and cabling.' },
+  { icon: '☁️', name: 'Data Recovery',        desc: 'Recover lost files from any storage device.' },
+  { icon: '⬇️', name: 'Software Installation',desc: 'Windows, Office, drivers, and antivirus.' },
+  { icon: '🖥️', name: 'Hardware Upgrades',    desc: 'RAM, SSD, GPU, PSU upgrades and swaps.' },
+  { icon: '🔌', name: 'Remote Support',       desc: 'AnyDesk / TeamViewer for Windows & Mac.' },
+  { icon: '📞', name: 'On-Call Priority',     desc: 'Dedicated technician on standby for emergencies.' },
+];
+
+const steps = [
+  { num: '01', title: 'Submit Request',  desc: 'Describe your issue and choose a service.' },
+  { num: '02', title: 'Get Assigned',    desc: 'We assign the best technician for the job.' },
+  { num: '03', title: 'Track Progress',  desc: 'Follow status updates in real time.' },
+  { num: '04', title: 'Pay Securely',    desc: 'Card, mobile money, or crypto.' },
 ];
 
 export default function LandingPage() {
@@ -24,146 +31,141 @@ export default function LandingPage() {
     setSending(true);
     try {
       await api.post('/contact', contact);
-      toast.success('Message sent! We\'ll get back to you within 24 hours.');
+      toast.success("Message sent! We'll get back to you within 24 hours.");
       setContact({ name: '', email: '', subject: '', message: '' });
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to send message');
-    } finally {
-      setSending(false);
-    }
+    } finally { setSending(false); }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      {/* Nav */}
-      <nav className="border-b border-slate-800 sticky top-0 z-50 bg-slate-950/95 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-sm">K</div>
-            <span className="font-bold text-lg">KIRATECH</span>
+    <div style={{ background: '#0a0f1e', minHeight: '100vh', color: '#e2e8f0', position: 'relative' }}>
+      <div className="stars-bg" style={{ position: 'fixed' }} />
+
+      {/* ── Nav ── */}
+      <nav style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(10,15,30,0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 1.5rem' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div className="logo-icon" style={{ width: '36px', height: '36px', borderRadius: '10px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/>
+                <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '0.06em', color: '#fff' }}>KIRATECH</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link to="/login"    className="text-sm text-slate-400 hover:text-white transition-colors px-3 py-1.5">Login</Link>
-            <Link to="/register" className="btn-primary text-sm px-4 py-1.5">Get Started</Link>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <Link to="/login" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.875rem', padding: '0.4rem 0.75rem', borderRadius: '8px', transition: 'color 0.15s' }}>Login</Link>
+            <Link to="/register" className="btn-teal" style={{ padding: '0.45rem 1.1rem', fontSize: '0.875rem', width: 'auto', borderRadius: '8px' }}>Get Started</Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
-        <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-1.5 text-blue-400 text-sm mb-6">
+      {/* ── Hero ── */}
+      <section style={{ position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto', padding: '6rem 1.5rem 5rem', textAlign: 'center' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '9999px', padding: '0.4rem 1rem', fontSize: '0.8rem', color: '#34d399', marginBottom: '1.75rem', fontWeight: 600 }}>
           🔧 Professional IT Support in Arusha, Tanzania
         </div>
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6">
+        <h1 style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', fontWeight: 900, color: '#fff', lineHeight: 1.15, marginBottom: '1.25rem' }}>
           IT Support,<br />
-          <span className="text-blue-500">On Demand</span>
+          <span style={{ background: 'linear-gradient(135deg, #10b981, #0ea5e9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>On Demand</span>
         </h1>
-        <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-10">
-          Submit a request, track your technician in real time, and pay securely with card,
-          mobile money, or crypto. Expert help is one click away.
+        <p style={{ fontSize: '1.1rem', color: '#64748b', maxWidth: '560px', margin: '0 auto 2.5rem', lineHeight: 1.7 }}>
+          Submit a request, track your technician in real time, and pay securely with card, mobile money, or crypto. Expert help is one click away.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/register" className="btn-primary px-8 py-3 text-base">Request a Service</Link>
-          <a href="#services" className="btn-secondary px-8 py-3 text-base">View Services</a>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link to="/register" className="btn-teal" style={{ width: 'auto', padding: '0.85rem 2rem', fontSize: '1rem' }}>Request a Service</Link>
+          <a href="#services" className="btn-secondary" style={{ padding: '0.85rem 2rem', fontSize: '1rem' }}>View Services</a>
         </div>
       </section>
 
-      {/* Services */}
-      <section id="services" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-white mb-3">Our Services</h2>
-          <p className="text-slate-400">Expert support for all your IT needs</p>
+      {/* ── Services ── */}
+      <section id="services" style={{ position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto', padding: '4rem 1.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>Our Services</h2>
+          <p style={{ color: '#64748b' }}>Expert support for all your IT needs</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {services.map(s => (
-            <div key={s.name} className="card hover:border-blue-700 transition-colors group">
-              <div className="text-3xl mb-3 group-hover:scale-110 transition-transform inline-block">{s.icon}</div>
-              <h3 className="font-semibold text-white mb-1">{s.name}</h3>
-              <p className="text-sm text-slate-400">{s.desc}</p>
+            <div key={s.name} className="glass-card" style={{ padding: '1.5rem', transition: 'border-color 0.2s, transform 0.2s', cursor: 'default' }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'none'; }}>
+              <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>{s.icon}</div>
+              <h3 style={{ fontWeight: 700, color: '#f1f5f9', marginBottom: '0.4rem', fontSize: '0.95rem' }}>{s.name}</h3>
+              <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.6 }}>{s.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="bg-slate-900/50 py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-white mb-3">How It Works</h2>
-            <p className="text-slate-400">Simple, fast, transparent</p>
+      {/* ── How it works ── */}
+      <section style={{ position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)', padding: '5rem 1.5rem' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>How It Works</h2>
+            <p style={{ color: '#64748b' }}>Simple, fast, transparent</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-8">
-            {[
-              { step: '01', title: 'Submit Request', desc: 'Describe your issue and choose a service.' },
-              { step: '02', title: 'Get Assigned',   desc: 'We assign the best technician for your job.' },
-              { step: '03', title: 'Track Progress', desc: 'Follow status updates in real time.' },
-              { step: '04', title: 'Pay Securely',   desc: 'Pay via card, mobile money, or crypto.' },
-            ].map(s => (
-              <div key={s.step} className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600/20 border border-blue-500/30 rounded-full text-blue-400 font-bold mb-4">{s.step}</div>
-                <h3 className="font-semibold text-white mb-1">{s.title}</h3>
-                <p className="text-sm text-slate-400">{s.desc}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
+            {steps.map(s => (
+              <div key={s.num} style={{ textAlign: 'center' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '50%', color: '#34d399', fontWeight: 800, fontSize: '0.85rem', marginBottom: '1rem' }}>{s.num}</div>
+                <h3 style={{ fontWeight: 700, color: '#f1f5f9', marginBottom: '0.5rem' }}>{s.title}</h3>
+                <p style={{ fontSize: '0.83rem', color: '#64748b', lineHeight: 1.6 }}>{s.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Payment methods */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-white mb-3">Flexible Payment Options</h2>
-          <p className="text-slate-400">We accept all major payment methods</p>
+      {/* ── Payment methods ── */}
+      <section style={{ position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto', padding: '5rem 1.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>Flexible Payment Options</h2>
+          <p style={{ color: '#64748b' }}>We accept all major payment methods</p>
         </div>
-        <div className="flex flex-wrap justify-center gap-4">
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
           {['💳 Credit / Debit Card', '📱 M-Pesa (TZ/KE)', '📱 Airtel Money', '📱 Tigo Pesa', '📱 MTN MoMo', '🟡 USDT / Binance Pay'].map(m => (
-            <div key={m} className="card py-3 px-5 text-sm text-slate-300 font-medium">{m}</div>
+            <div key={m} className="glass-card" style={{ padding: '0.65rem 1.25rem', fontSize: '0.83rem', color: '#cbd5e1', fontWeight: 500 }}>{m}</div>
           ))}
         </div>
       </section>
 
-      {/* Contact */}
-      <section id="contact" className="bg-slate-900/50 py-20">
-        <div className="max-w-xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-white mb-3">Contact Us</h2>
-            <p className="text-slate-400">Questions? We typically respond within 24 hours.</p>
+      {/* ── Contact ── */}
+      <section id="contact" style={{ position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.04)', padding: '5rem 1.5rem' }}>
+        <div style={{ maxWidth: '560px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', marginBottom: '0.75rem' }}>Contact Us</h2>
+            <p style={{ color: '#64748b' }}>Questions? We typically respond within 24 hours.</p>
           </div>
-          <form onSubmit={handleContact} className="card space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Name</label>
-                <input required className="input-field" value={contact.name}
-                  onChange={e => setContact(c => ({ ...c, name: e.target.value }))} placeholder="Your name" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
-                <input required type="email" className="input-field" value={contact.email}
-                  onChange={e => setContact(c => ({ ...c, email: e.target.value }))} placeholder="you@example.com" />
-              </div>
+          <form className="glass-card" style={{ padding: '2rem' }} onSubmit={handleContact}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              {[{ k: 'name', label: 'Name', type: 'text', ph: 'Your name' }, { k: 'email', label: 'Email', type: 'email', ph: 'you@example.com' }].map(f => (
+                <div key={f.k}>
+                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{f.label}</label>
+                  <input required type={f.type} className="input-field" placeholder={f.ph} value={contact[f.k]} onChange={e => setContact(c => ({ ...c, [f.k]: e.target.value }))} />
+                </div>
+              ))}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Subject</label>
-              <input required className="input-field" value={contact.subject}
-                onChange={e => setContact(c => ({ ...c, subject: e.target.value }))} placeholder="How can we help?" />
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Subject</label>
+              <input required className="input-field" placeholder="How can we help?" value={contact.subject} onChange={e => setContact(c => ({ ...c, subject: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Message</label>
-              <textarea required rows={4} className="input-field resize-none" value={contact.message}
-                onChange={e => setContact(c => ({ ...c, message: e.target.value }))} placeholder="Describe your issue or question…" />
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Message</label>
+              <textarea required rows={4} className="input-field" style={{ resize: 'none' }} placeholder="Describe your issue or question…" value={contact.message} onChange={e => setContact(c => ({ ...c, message: e.target.value }))} />
             </div>
-            <button type="submit" disabled={sending} className="btn-primary w-full py-2.5">
-              {sending ? 'Sending…' : 'Send message'}
+            <button type="submit" disabled={sending} className="btn-teal">
+              {sending ? 'Sending…' : 'Send Message'}
             </button>
           </form>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800 py-10 text-center text-slate-500 text-sm">
-        <p className="font-semibold text-slate-400 mb-1">KIRATECH IT Support</p>
-        <p>Njiro Road, Arusha, Tanzania · robertcharles088@gmail.com</p>
-        <p className="mt-4">© {new Date().getFullYear()} KIRATECH. All rights reserved.</p>
+      {/* ── Footer ── */}
+      <footer style={{ position: 'relative', zIndex: 1, borderTop: '1px solid rgba(255,255,255,0.06)', padding: '2.5rem 1.5rem', textAlign: 'center' }}>
+        <p style={{ fontWeight: 700, color: '#94a3b8', marginBottom: '0.35rem' }}>KIRATECH IT Support</p>
+        <p style={{ fontSize: '0.82rem', color: '#475569' }}>Njiro Road, Arusha, Tanzania · robertcharles088@gmail.com</p>
+        <p style={{ fontSize: '0.78rem', color: '#334155', marginTop: '1rem' }}>© {new Date().getFullYear()} KIRATECH. All rights reserved.</p>
       </footer>
     </div>
   );

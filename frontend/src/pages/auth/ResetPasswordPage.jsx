@@ -17,47 +17,39 @@ export default function ResetPasswordPage() {
     setLoading(true);
     try {
       await api.post('/auth/reset-password', { token, password });
-      toast.success('Password reset successfully. You can now log in.');
+      toast.success('Password reset successfully.');
       navigate('/login');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Reset failed');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-white">Set new password</h1>
+    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+      <div className="stars-bg" />
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: '400px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🔒</div>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>Set new password</h1>
         </div>
-
-        <div className="card">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">New password</label>
-              <input
-                type="password" required minLength={8}
-                value={password} onChange={e => setPassword(e.target.value)}
-                className="input-field" placeholder="Min 8 chars, upper + lower + number"
-              />
+        <div className="glass-card" style={{ padding: '2rem' }}>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '1.1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>New Password</label>
+              <input type="password" required minLength={8} className="input-field" placeholder="Min 8 chars"
+                value={password} onChange={e => setPassword(e.target.value)} />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirm password</label>
-              <input
-                type="password" required
-                value={confirm} onChange={e => setConfirm(e.target.value)}
-                className="input-field" placeholder="Repeat password"
-              />
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Confirm Password</label>
+              <input type="password" required className="input-field" placeholder="Repeat password"
+                value={confirm} onChange={e => setConfirm(e.target.value)} />
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full py-2.5">
-              {loading ? 'Resetting…' : 'Reset password'}
+            <button type="submit" disabled={loading} className="btn-teal">
+              {loading ? 'Resetting…' : 'Reset Password'}
             </button>
           </form>
-          <p className="text-center mt-4 text-sm">
-            <Link to="/login" className="text-blue-400 hover:text-blue-300">Back to login</Link>
+          <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.83rem' }}>
+            <Link to="/login" style={{ color: '#34d399', textDecoration: 'none' }}>Back to login</Link>
           </p>
         </div>
       </div>
