@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import api from '../../lib/api';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { UsersIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, MagnifyingGlassIcon, TrashIcon } from '@heroicons/react/24/outline';
+import ConfirmModal from '../../components/ConfirmModal';
 import toast from 'react-hot-toast';
 
 export default function AdminUsers() {
   const [users, setUsers]   = useState([]);
   const [loading, setLoad]  = useState(true);
   const [search, setSearch] = useState('');
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchUsers = () => {
     setLoad(true);
@@ -23,6 +26,19 @@ export default function AdminUsers() {
       toast.success(`User ${!user.isActive ? 'activated' : 'deactivated'}`);
       fetchUsers();
     } catch { toast.error('Action failed'); }
+  };
+
+  const deleteUser = async () => {
+    if (!deletingUser) return;
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/admin/users/${deletingUser.id}`);
+      toast.success('Customer and email permanently deleted');
+      setDeletingUser(null);
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to delete customer');
+    } finally { setDeleteLoading(false); }
   };
 
   return (
@@ -74,10 +90,14 @@ export default function AdminUsers() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 flex items-center gap-3">
                       <button onClick={() => toggleStatus(u)}
                         className={`text-xs font-semibold hover:underline ${u.isActive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                         {u.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button onClick={() => setDeletingUser(u)} title="Permanently delete customer"
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300" aria-label={`Permanently delete ${u.email}`}>
+                        <TrashIcon className="h-4 w-4" />
                       </button>
                     </td>
                   </tr>
@@ -93,6 +113,15 @@ export default function AdminUsers() {
           </div>
         </div>
       )}
+      <ConfirmModal
+        isOpen={Boolean(deletingUser)}
+        title="Permanently delete customer?"
+        message={deletingUser ? `This will permanently delete ${deletingUser.name} (${deletingUser.email}) and all associated requests, payments, reviews, notifications, and chats. This cannot be undone.` : ''}
+        confirmText="Delete permanently"
+        onConfirm={deleteUser}
+        onCancel={() => !deleteLoading && setDeletingUser(null)}
+        loading={deleteLoading}
+      />
     </div>
   );
 }

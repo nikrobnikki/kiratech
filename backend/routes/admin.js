@@ -2,7 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { Op } = require('sequelize');
 const { authenticate, requireVerified, authorize } = require('../middleware/auth');
-const { User, Technician, ServiceRequest, Service, Notification, Review } = require('../models');
+const { sequelize, User, Technician, ServiceRequest, Service, Notification, Review, Payment, TechnicianMessage, ChatMessage } = require('../models');
 const { paginate, paginateResponse } = require('../utils/helpers');
 const { sendTechnicianAssignedEmail, sendTechnicianTaskEmail } = require('../utils/email');
 
@@ -193,6 +193,64 @@ router.put('/users/:id/status', async (req, res) => {
     res.json({ message: `User ${req.body.isActive ? 'activated' : 'deactivated'}` });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update user status' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/users/{id}:
+ *   delete:
+ *     summary: Permanently delete a customer and their data
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Customer permanently deleted
+ *       403:
+ *         description: Only customer accounts can be deleted
+ */
+router.delete('/users/:id', async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const user = await User.findByPk(req.params.id, { transaction });
+    if (!user) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (user.role !== 'customer') {
+      await transaction.rollback();
+      return res.status(403).json({ error: 'Only customer accounts can be permanently deleted' });
+    }
+
+    const requests = await ServiceRequest.findAll({ where: { userId: user.id }, attributes: ['id'], transaction });
+    const requestIds = requests.map(request => request.id);
+
+    if (requestIds.length > 0) {
+      await Review.destroy({ where: { requestId: requestIds }, transaction });
+      await Payment.destroy({ where: { requestId: requestIds }, transaction });
+      await TechnicianMessage.destroy({ where: { requestId: requestIds }, transaction });
+      await ChatMessage.destroy({ where: { requestId: requestIds }, transaction });
+      await ServiceRequest.destroy({ where: { id: requestIds }, transaction });
+    }
+
+    await Review.destroy({ where: { userId: user.id }, transaction });
+    await Payment.destroy({ where: { userId: user.id }, transaction });
+    await Notification.destroy({ where: { userId: user.id }, transaction });
+    await ChatMessage.destroy({ where: { senderId: user.id }, transaction });
+    await user.destroy({ transaction });
+    await transaction.commit();
+
+    res.json({ message: 'Customer and associated data permanently deleted' });
+  } catch (err) {
+    await transaction.rollback();
+    console.error('Delete customer error:', err);
+    res.status(500).json({ error: 'Failed to permanently delete customer' });
   }
 });
 
