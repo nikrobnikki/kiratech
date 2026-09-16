@@ -40,6 +40,7 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: KIRATECH IT Support <robertcharles088@gmail.com>
+      # Use a verified Resend sender if RESEND_API_KEY is enabled.
       - key: RESEND_API_KEY
         sync: false
       - key: ADMIN_EMAIL

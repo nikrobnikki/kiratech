@@ -6,10 +6,14 @@ const nodemailer = require('nodemailer');
 let _resend = null;
 let _smtpTransporter = null;
 
+function isPlaceholder(value) {
+  return !value || /your_|xxxxxxxx|example\.com/i.test(value);
+}
+
 function getResend() {
   if (_resend) return _resend;
   const key = process.env.RESEND_API_KEY;
-  if (!key || key === 'your_resend_api_key') return null;
+  if (isPlaceholder(key)) return null;
   _resend = new Resend(key);
   return _resend;
 }
@@ -18,7 +22,7 @@ function getSmtpTransporter() {
   if (_smtpTransporter) return _smtpTransporter;
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
-  if (!user || !pass || user === 'your_email@gmail.com' || pass === 'your_16_char_app_password') return null;
+  if (isPlaceholder(user) || isPlaceholder(pass)) return null;
   _smtpTransporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: Number(process.env.EMAIL_PORT || 587),
@@ -48,7 +52,7 @@ async function verifyEmailConnection() {
       return false;
     }
   }
-  console.warn('⚠️ Email not configured — set RESEND_API_KEY or EMAIL_USER and EMAIL_PASS');
+  console.warn('⚠️ Email not configured — set a real RESEND_API_KEY or Gmail EMAIL_USER and EMAIL_PASS');
   return false;
 }
 
