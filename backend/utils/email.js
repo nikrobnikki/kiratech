@@ -118,10 +118,17 @@ const baseTemplate = (content) => `
 const sendEmail = async ({ to, subject, html, text }) => {
   const r = getResend();
   const smtp = r ? null : getSmtpTransporter();
+  const isDev = process.env.NODE_ENV !== 'production';
+
   if (!r && !smtp) {
+    if (isDev) {
+      console.warn(`⚠️ No email provider configured; using development mock delivery for "${subject}" → ${to}`);
+      return true;
+    }
     console.error(`❌ Email not sent (provider not configured): "${subject}" → ${to}`);
     return false;
   }
+
   try {
     if (smtp) {
       await smtp.sendMail({
@@ -143,12 +150,20 @@ const sendEmail = async ({ to, subject, html, text }) => {
       text: text || subject,
     });
     if (error) {
+      if (isDev) {
+        console.warn(`⚠️ Email provider failed in dev mode; using mock delivery for "${subject}" → ${to}. ${error.message}`);
+        return true;
+      }
       console.error(`❌ Email failed → ${to} | "${subject}" | ${error.message}`);
       return false;
     }
     console.log(`📧 Email sent → ${to} | "${subject}" | ID: ${data.id}`);
     return true;
   } catch (err) {
+    if (isDev) {
+      console.warn(`⚠️ Email delivery failed in dev mode; using mock delivery for "${subject}" → ${to}. ${err.message}`);
+      return true;
+    }
     console.error(`❌ Email error → ${to} | "${subject}" | ${err.message}`);
     return false;
   }
@@ -178,6 +193,10 @@ const sendVerificationEmail = async (user, token) => {
 };
 
 const sendOtpEmail = async (user, otp) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`🧪 DEV OTP for ${user.email}: ${otp}`);
+  }
+
   return sendEmail({
     to: user.email,
     subject: `${otp} — Your KIRATECH Verification Code`,

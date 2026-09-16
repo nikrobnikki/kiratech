@@ -76,10 +76,12 @@ router.post(
         return res.status(503).json({ error: 'Unable to send verification code. Please try again later.' });
       }
 
+      const devOtp = process.env.NODE_ENV !== 'production' ? otp : undefined;
       res.status(201).json({
         message: 'Registration successful. A 6-digit code has been sent to your email.',
         userId: user.id,
         email: user.email,
+        ...(devOtp ? { debugOtp: devOtp } : {}),
       });
     } catch (err) {
       console.error('Register error:', err);
@@ -197,7 +199,10 @@ router.post('/resend-otp', async (req, res) => {
       verificationToken: otp,
       verificationExpires: new Date(Date.now() + 15 * 60 * 1000),
     });
-    res.json({ message: 'A new 6-digit code has been sent to your email.' });
+    res.json({
+      message: 'A new 6-digit code has been sent to your email.',
+      ...(process.env.NODE_ENV !== 'production' ? { debugOtp: otp } : {}),
+    });
   } catch (err) {
     console.error('Resend OTP error:', err);
     res.status(500).json({ error: 'Failed to resend code' });
