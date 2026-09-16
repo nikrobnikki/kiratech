@@ -117,7 +117,7 @@ const baseTemplate = (content) => `
 // ─── Core send function ───────────────────────────────────────────────────────
 const sendEmail = async ({ to, subject, html, text }) => {
   const r = getResend();
-  const smtp = r ? null : getSmtpTransporter();
+  const smtp = getSmtpTransporter();
   const isDev = process.env.NODE_ENV !== 'production';
 
   if (!r && !smtp) {
@@ -129,8 +129,24 @@ const sendEmail = async ({ to, subject, html, text }) => {
     return false;
   }
 
-  try {
-    if (smtp) {
+  // Try every configured provider. Resend can reject an unverified sender while
+  // Gmail SMTP is still healthy, so one provider must not block the other.
+  if (r) {
+    try {
+      const fromAddress = process.env.EMAIL_FROM || 'KIRATECH IT Support <onboarding@resend.dev>';
+      const { data, error } = await r.emails.send({ from: fromAddress, to, subject, html, text: text || subject });
+      if (!error) {
+        console.log(`📧 Email sent → ${to} | "${subject}" | Resend ID: ${data.id}`);
+        return true;
+      }
+      console.error(`❌ Resend failed → ${to} | "${subject}" | ${error.message}`);
+    } catch (err) {
+      console.error(`❌ Resend error → ${to} | "${subject}" | ${err.message}`);
+    }
+  }
+
+  if (smtp) {
+    try {
       await smtp.sendMail({
         from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to,
@@ -138,35 +154,18 @@ const sendEmail = async ({ to, subject, html, text }) => {
         html,
         text: text || subject,
       });
-      console.log(`📧 Email sent → ${to} | "${subject}" | SMTP`);
+      console.log(`📧 Email sent → ${to} | "${subject}" | SMTP fallback`);
       return true;
+    } catch (err) {
+      console.error(`❌ SMTP fallback failed → ${to} | "${subject}" | ${err.message}`);
     }
-    const fromAddress = process.env.EMAIL_FROM || 'KIRATECH IT Support <onboarding@resend.dev>';
-    const { data, error } = await r.emails.send({
-      from: fromAddress,
-      to,
-      subject,
-      html,
-      text: text || subject,
-    });
-    if (error) {
-      if (isDev) {
-        console.warn(`⚠️ Email provider failed in dev mode; using mock delivery for "${subject}" → ${to}. ${error.message}`);
-        return true;
-      }
-      console.error(`❌ Email failed → ${to} | "${subject}" | ${error.message}`);
-      return false;
-    }
-    console.log(`📧 Email sent → ${to} | "${subject}" | ID: ${data.id}`);
-    return true;
-  } catch (err) {
-    if (isDev) {
-      console.warn(`⚠️ Email delivery failed in dev mode; using mock delivery for "${subject}" → ${to}. ${err.message}`);
-      return true;
-    }
-    console.error(`❌ Email error → ${to} | "${subject}" | ${err.message}`);
-    return false;
   }
+
+  if (isDev) {
+    console.warn(`⚠️ Email delivery failed in dev mode; using mock delivery for "${subject}" → ${to}`);
+    return true;
+  }
+  return false;
 };
 
 // ─── Email templates ──────────────────────────────────────────────────────────
