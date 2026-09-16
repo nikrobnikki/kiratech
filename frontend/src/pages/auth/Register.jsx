@@ -177,7 +177,7 @@ export default function Register() {
       <div className="relative w-full max-w-md animate-scale-in">
         {/* Logo */}
         <div className="text-center mb-7">
-          <Link to="/" className="inline-flex justify-center"><KiratechLogo size={42} layout="col" /></Link>
+          <div className="inline-flex justify-center"><KiratechLogo size={42} layout="col" /></div>
           <div className="mt-4">
             {step === 'register' && <><h1 className="text-2xl font-bold text-white">Create an account</h1><p className="text-slate-400 text-sm mt-1">Start requesting IT support today</p></>}
             {step === 'verify'   && <><h1 className="text-2xl font-bold text-white">Verify your email</h1><p className="text-slate-400 text-sm mt-1">Step 2 of 2</p></>}

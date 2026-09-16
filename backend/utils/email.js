@@ -1,8 +1,10 @@
 const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 // ─── Resend client ────────────────────────────────────────────────────────────
 // Uses Resend API (works on Render free tier — no SMTP port blocking)
 let _resend = null;
+let _smtpTransporter = null;
 
 function getResend() {
   if (_resend) return _resend;
@@ -12,19 +14,42 @@ function getResend() {
   return _resend;
 }
 
+function getSmtpTransporter() {
+  if (_smtpTransporter) return _smtpTransporter;
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  if (!user || !pass || user === 'your_email@gmail.com' || pass === 'your_16_char_app_password') return null;
+  _smtpTransporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: Number(process.env.EMAIL_PORT || 587),
+    secure: String(process.env.EMAIL_PORT || 587) === '465',
+    auth: { user, pass },
+  });
+  return _smtpTransporter;
+}
+
 /**
  * Verify email is configured on startup.
  */
 async function verifyEmailConnection() {
   const r = getResend();
-  if (!r) {
-    console.warn('⚠️  Email not configured — add RESEND_API_KEY to environment variables');
-    console.warn('   Get a free key at: https://resend.com (3000 emails/month free)');
-    console.warn('   The app works fully without email — notifications will be skipped.');
-    return false;
+  if (r) {
+    console.log('✅ Email ready (Resend API)');
+    return true;
   }
-  console.log('✅ Email ready (Resend API)');
-  return true;
+  const smtp = getSmtpTransporter();
+  if (smtp) {
+    try {
+      await smtp.verify();
+      console.log(`✅ Email ready (SMTP: ${process.env.EMAIL_HOST || 'smtp.gmail.com'})`);
+      return true;
+    } catch (err) {
+      console.error(`❌ SMTP email configuration failed: ${err.message}`);
+      return false;
+    }
+  }
+  console.warn('⚠️ Email not configured — set RESEND_API_KEY or EMAIL_USER and EMAIL_PASS');
+  return false;
 }
 
 // ─── Base HTML template ───────────────────────────────────────────────────────
@@ -92,11 +117,23 @@ const baseTemplate = (content) => `
 // ─── Core send function ───────────────────────────────────────────────────────
 const sendEmail = async ({ to, subject, html, text }) => {
   const r = getResend();
-  if (!r) {
-    console.warn(`📭 Email skipped (not configured): "${subject}" → ${to}`);
+  const smtp = r ? null : getSmtpTransporter();
+  if (!r && !smtp) {
+    console.error(`❌ Email not sent (provider not configured): "${subject}" → ${to}`);
     return false;
   }
   try {
+    if (smtp) {
+      await smtp.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to,
+        subject,
+        html,
+        text: text || subject,
+      });
+      console.log(`📧 Email sent → ${to} | "${subject}" | SMTP`);
+      return true;
+    }
     const fromAddress = process.env.EMAIL_FROM || 'KIRATECH IT Support <onboarding@resend.dev>';
     const { data, error } = await r.emails.send({
       from: fromAddress,

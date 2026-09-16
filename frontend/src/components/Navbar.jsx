@@ -42,9 +42,9 @@ export default function Navbar() {
         <div className="flex justify-between h-16 items-center">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center group">
+          <div className="flex items-center group">
             <KiratechLogo size={30} />
-          </Link>
+          </div>
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">

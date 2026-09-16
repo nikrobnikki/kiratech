@@ -36,7 +36,7 @@ export default function VerifyEmail() {
 
       <div className="relative w-full max-w-md animate-scale-in">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex justify-center"><KiratechLogo size={44} layout="col" /></Link>
+          <div className="inline-flex justify-center"><KiratechLogo size={44} layout="col" /></div>
         </div>
 
         <div className="bg-slate-800/80 backdrop-blur-xl rounded-2xl p-8 border border-slate-700/60 shadow-glass-lg text-center">

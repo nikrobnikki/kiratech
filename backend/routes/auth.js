@@ -70,7 +70,11 @@ router.post(
         role: 'customer',
       });
 
-      await sendOtpEmail(user, otp);
+      const emailSent = await sendOtpEmail(user, otp);
+      if (!emailSent) {
+        await user.destroy();
+        return res.status(503).json({ error: 'Unable to send verification code. Please try again later.' });
+      }
 
       res.status(201).json({
         message: 'Registration successful. A 6-digit code has been sent to your email.',
@@ -185,11 +189,14 @@ router.post('/resend-otp', async (req, res) => {
     }
 
     const otp = generateOtp();
+    const emailSent = await sendOtpEmail(user, otp);
+    if (!emailSent) {
+      return res.status(503).json({ error: 'Unable to send verification code. Please try again later.' });
+    }
     await user.update({
       verificationToken: otp,
       verificationExpires: new Date(Date.now() + 15 * 60 * 1000),
     });
-    await sendOtpEmail(user, otp);
     res.json({ message: 'A new 6-digit code has been sent to your email.' });
   } catch (err) {
     console.error('Resend OTP error:', err);

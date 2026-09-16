@@ -33,7 +33,7 @@ export default function ResetPassword() {
 
       <div className="relative w-full max-w-md animate-scale-in">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex justify-center"><KiratechLogo size={44} layout="col" /></Link>
+          <div className="inline-flex justify-center"><KiratechLogo size={44} layout="col" /></div>
           <h1 className="text-2xl font-bold text-white mt-4">Reset Password</h1>
           <p className="text-slate-400 mt-1 text-sm">Enter a new secure password below.</p>
         </div>

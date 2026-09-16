@@ -35,7 +35,7 @@ export default function Login() {
       <div className="relative w-full max-w-md animate-scale-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex justify-center"><KiratechLogo size={44} layout="col" /></Link>
+          <div className="inline-flex justify-center"><KiratechLogo size={44} layout="col" /></div>
           <h1 className="text-2xl font-bold text-white mt-4">Welcome Back</h1>
           <p className="text-slate-400 mt-1 text-sm">Sign in to your KIRATECH account</p>
         </div>

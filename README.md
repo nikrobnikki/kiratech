@@ -12,7 +12,7 @@ A full-stack web application for managing IT support requests, technicians, and 
 | Backend     | Node.js, Express.js               |
 | Database    | MySQL + Sequelize ORM             |
 | Auth        | JWT + Email Verification          |
-| Email       | Nodemailer (SMTP/Gmail)           |
+| Email       | Resend API or Nodemailer (SMTP/Gmail) |
 
 ---
 
@@ -77,6 +77,8 @@ After running `node scripts/seed.js`:
 | Method | Route                              | Access         |
 |--------|------------------------------------|----------------|
 | POST   | /api/auth/register                 | Public         |
+| POST   | /api/auth/verify-otp               | Public         |
+| POST   | /api/auth/resend-otp               | Public         |
 | GET    | /api/auth/verify-email?token=...   | Public         |
 | POST   | /api/auth/login                    | Public         |
 | POST   | /api/auth/forgot-password          | Public         |
@@ -115,7 +117,8 @@ After running `node scripts/seed.js`:
 
 ```
 Customer Registration
-  → Email Verification
+  → 6-digit OTP sent to the registration email
+    → Email Verification
     → Login
       → Submit Service Request
         → Admin Receives Notification
@@ -124,3 +127,12 @@ Customer Registration
               → Service Completion
                 → Customer Reviews
 ```
+
+### Email configuration
+
+Configure one email provider in `backend/.env` before registering customers:
+
+- Gmail SMTP: set `EMAIL_USER`, `EMAIL_PASS` (a Gmail App Password), `EMAIL_HOST`, `EMAIL_PORT`, and `EMAIL_FROM`.
+- Resend: set `RESEND_API_KEY` and use a verified sender/domain in `EMAIL_FROM`.
+
+The backend uses Resend when `RESEND_API_KEY` is present and falls back to Gmail SMTP. If delivery fails, registration returns an error and does not leave an unusable unverified account behind.
